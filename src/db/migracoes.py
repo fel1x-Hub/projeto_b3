@@ -11,13 +11,14 @@ edite uma migração já aplicada.
 import logging
 import sqlite3
 
-from src.db.schema import SCHEMA_V1, SCHEMA_V2
+from src.db.schema import SCHEMA_V1, SCHEMA_V2, SCHEMA_V3
 
 logger = logging.getLogger(__name__)
 
 MIGRACOES: list[tuple[int, str]] = [
     (1, SCHEMA_V1),
     (2, SCHEMA_V2),  # etapa 2: proventos, demonstracoes, ativos.apelidos/tipo
+    (3, SCHEMA_V3),  # etapa 2: documentos.assunto
 ]
 
 _CRIAR_CONTROLE = """

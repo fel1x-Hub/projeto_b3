@@ -125,14 +125,15 @@ Fatos relevantes, ITR, DFP e releases.
 | Coluna | Tipo | Notas |
 |---|---|---|
 | id | INTEGER PK | |
-| tipo | TEXT | Ex.: `fato_relevante`, `itr`, `dfp`. |
+| tipo | TEXT | `fato_relevante`, `comunicado`, `aviso_acionistas` ou `dados_economico_financeiros` (releases). |
 | ticker | FK → ativos | Opcional (documento ainda não mapeado). |
 | data_referencia | data | Opcional (ex.: fim do trimestre). |
 | fonte | TEXT | |
-| id_externo | TEXT NOT NULL | Identificador na fonte (ex.: protocolo CVM). |
+| id_externo | TEXT NOT NULL | Na CVM: `protocolo-vVERSAO`. Cada reapresentação é um documento próprio. |
 | url, conteudo, caminho_arquivo | TEXT | Pelo menos um dos três é obrigatório. |
+| assunto | TEXT | *(v3)* Assunto informado pela empresa (ex.: "Relatório de Produção 4T25"). |
 | hash_conteudo | TEXT | Detecta quando o conteúdo muda. |
-| disponivel_em | timestamp | Data/hora de entrega ou divulgação. |
+| disponivel_em | timestamp | Data de entrega às 23:59:59 BRT, porque a CVM só informa o dia. |
 | coletado_em | timestamp | |
 
 Chave única: `(fonte, id_externo)`. Índice: `(ticker, disponivel_em)`.

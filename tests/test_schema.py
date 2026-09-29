@@ -65,6 +65,6 @@ def test_migracao_2_sobre_banco_v1_com_dados(conn_vazia):
         conn_vazia.execute("INSERT INTO ativos (ticker, nome, ativo, criado_em, atualizado_em) "
                            "VALUES ('PETR4', 'Petrobras', 1, '2026-01-02T21:00:00+00:00', "
                            "'2026-01-02T21:00:00+00:00')")
-    assert migrar(conn_vazia) == 2
+    assert migrar(conn_vazia) == len(MIGRACOES)
     linha = conn_vazia.execute("SELECT tipo, apelidos FROM ativos").fetchone()
     assert tuple(linha) == ("acao", None)

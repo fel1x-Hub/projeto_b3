@@ -204,3 +204,10 @@ CREATE INDEX idx_demonstracoes_documento ON demonstracoes (
 );
 CREATE INDEX idx_demonstracoes_cia_disponivel ON demonstracoes (codigo_cvm, disponivel_em);
 """
+
+
+SCHEMA_V3 = """
+-- Assunto informado pela empresa na entrega (ex: "Relatório de Produção 4T25").
+-- Resume o documento sem precisar baixar o PDF; útil para o LLM na etapa 3.
+ALTER TABLE documentos ADD COLUMN assunto TEXT;
+"""
