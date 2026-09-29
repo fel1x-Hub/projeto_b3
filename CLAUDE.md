@@ -17,7 +17,7 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 | # | Etapa | Arquivo | Status |
 |---|-------|---------|--------|
 | 1 | Fundação e banco de dados | [etapas/etapa1.md](etapas/etapa1.md) | ✅ concluída |
-| 2 | Coleta de dados | [etapas/etapa2.md](etapas/etapa2.md) | ⏳ pendente |
+| 2 | Coleta de dados | [etapas/etapa2.md](etapas/etapa2.md) | 🔨 em andamento |
 | 3 | Extração de sinais | [etapas/etapa3.md](etapas/etapa3.md) | ⏳ pendente |
 | 4 | Modelo de ranking | [etapas/etapa4.md](etapas/etapa4.md) | ⏳ pendente |
 | 5 | Backtest e paper trading | [etapas/etapa5.md](etapas/etapa5.md) | ⏳ pendente |
