@@ -211,3 +211,72 @@ SCHEMA_V3 = """
 -- Resume o documento sem precisar baixar o PDF; útil para o LLM na etapa 3.
 ALTER TABLE documentos ADD COLUMN assunto TEXT;
 """
+
+
+SCHEMA_V4 = f"""
+-- Sinais por ativo e pregão, em formato LONGO (um valor por linha).
+-- Por que longo: sinal novo não exige migração, cobertura/faltantes saem de uma
+-- consulta, e a etapa 4 pivota para colunas. Valor ausente = linha ausente.
+-- `disponivel_em` = corte usado no cálculo (pregão às 19h BRT): o sinal só usa
+-- dados com disponivel_em <= esse corte. `versao` muda quando a fórmula muda.
+CREATE TABLE sinais (
+    id            INTEGER PRIMARY KEY,
+    ticker        TEXT NOT NULL REFERENCES ativos (ticker),
+    {_data("data")},
+    nome          TEXT NOT NULL,
+    valor         REAL NOT NULL,
+    versao        INTEGER NOT NULL,
+    {_ts("disponivel_em")},
+    {_ts("calculado_em")},
+    UNIQUE (ticker, data, nome, versao)
+);
+CREATE INDEX idx_sinais_nome_data ON sinais (nome, data);
+
+-- Sentimento de cada notícia, por modelo. score = P(positivo) - P(negativo).
+CREATE TABLE sentimento_noticias (
+    noticia_id    INTEGER NOT NULL REFERENCES noticias (id) ON DELETE CASCADE,
+    modelo        TEXT NOT NULL,
+    rotulo        TEXT NOT NULL CHECK (rotulo IN ('positivo', 'neutro', 'negativo')),
+    prob_positivo REAL NOT NULL,
+    prob_neutro   REAL NOT NULL,
+    prob_negativo REAL NOT NULL,
+    score         REAL NOT NULL,
+    {_ts("calculado_em")},
+    PRIMARY KEY (noticia_id, modelo)
+);
+
+-- Eventos extraídos de documentos da CVM por LLM (etapa 3.4). O LLM só
+-- classifica e resume; nenhum número é calculado por ele.
+CREATE TABLE eventos_documentos (
+    documento_id  INTEGER NOT NULL REFERENCES documentos (id) ON DELETE CASCADE,
+    modelo        TEXT NOT NULL,
+    versao_prompt INTEGER NOT NULL,
+    tipo_evento   TEXT NOT NULL,
+    direcao       TEXT NOT NULL CHECK (direcao IN ('positiva', 'neutra', 'negativa')),
+    relevancia    INTEGER NOT NULL CHECK (relevancia BETWEEN 1 AND 5),
+    resumo        TEXT NOT NULL,
+    {_ts("calculado_em")},
+    PRIMARY KEY (documento_id, modelo, versao_prompt)
+);
+
+-- Cache de respostas do LLM: mesma entrada + modelo + versão do prompt nunca
+-- é processada duas vezes. `chave` = sha256 desses três.
+CREATE TABLE llm_cache (
+    chave         TEXT PRIMARY KEY,
+    modelo        TEXT NOT NULL,
+    versao_prompt INTEGER NOT NULL,
+    resposta      TEXT NOT NULL CHECK (json_valid(resposta)),
+    {_ts("criado_em")}
+);
+
+-- Respostas inválidas (fora do schema) ou falhas, para auditoria.
+CREATE TABLE llm_erros (
+    id             INTEGER PRIMARY KEY,
+    documento_id   INTEGER REFERENCES documentos (id) ON DELETE CASCADE,
+    modelo         TEXT NOT NULL,
+    versao_prompt  INTEGER NOT NULL,
+    erro           TEXT NOT NULL,
+    resposta_bruta TEXT,
+    {_ts("ocorrido_em")}
+);
+"""

@@ -189,6 +189,35 @@ Só guardo o exercício "ÚLTIMO" de cada documento, porque o "PENÚLTIMO" é ap
 
 Índice único: sobre a identidade completa da linha, com `COALESCE` nas datas, porque no SQLite dois NULLs nunca colidem num índice único.
 
+### `sinais` *(v4)*
+Sinais por ativo e pregão, em **formato longo**, com um valor por linha. Um valor ausente é uma linha ausente.
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| ticker | FK → ativos | |
+| data | data | Pregão. |
+| nome | TEXT | Ex.: `ret_21d`, `rsi14`, `fund_pvp`, `sent_media_dia`. Catálogo em `docs/sinais.md`. |
+| valor | REAL NOT NULL | |
+| versao | INTEGER | Versão da fórmula. Muda quando o cálculo muda. |
+| disponivel_em | timestamp | Corte usado no cálculo: o pregão às 19h BRT. O sinal só usa dados com `disponivel_em` menor ou igual a esse corte. |
+| calculado_em | timestamp | |
+
+Chave única: `(ticker, data, nome, versao)`.
+
+Escolhi o formato longo porque:
+- um sinal novo não exige migração;
+- cobertura e faltantes saem de uma consulta;
+- a etapa 4 transforma em colunas quando precisar.
+
+### `sentimento_noticias` *(v4)*
+Uma linha por notícia e modelo. Guarda o rótulo (`positivo`, `neutro` ou `negativo`), as três probabilidades e `score = P(positivo) − P(negativo)`.
+
+### `eventos_documentos`, `llm_cache` e `llm_erros` *(v4)*
+São da extração de eventos com LLM (etapa 3.4).
+- **`eventos_documentos`:** tipo do evento, direção, relevância (1 a 5) e resumo, por documento, modelo e versão do prompt.
+- **`llm_cache`:** as respostas, indexadas por um hash da entrada, do modelo e da versão do prompt, para nunca reprocessar.
+- **`llm_erros`:** respostas fora do schema e falhas.
+
 ### `execucoes_coleta`
 Uma linha por fonte a cada execução da coleta.
 
