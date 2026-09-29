@@ -145,3 +145,39 @@ def test_revisoes(conn):
     assert conn.execute("SELECT campo FROM revisoes").fetchone()[0] == "fechamento"
     with pytest.raises(sqlite3.IntegrityError, match="CHECK"):
         _inserir(conn, "revisoes", {**rev, "chave_registro": "não é json"})
+
+
+PROVENTO = {"ticker": "PETR4", "tipo": "dividendo", "data_ex": "2026-08-24", "valor": 1.35,
+            "fator": None, "fonte": "yfinance", "disponivel_em": TS, "coletado_em": TS}
+
+
+def test_proventos(conn):
+    _inserir(conn, "proventos", PROVENTO)
+    _inserir(conn, "proventos", {**PROVENTO, "tipo": "desdobramento", "valor": None, "fator": 2.0})
+    assert conn.execute("SELECT COUNT(*) FROM proventos").fetchone()[0] == 2
+    with pytest.raises(sqlite3.IntegrityError, match="UNIQUE"):
+        _inserir(conn, "proventos", PROVENTO)
+
+
+@pytest.mark.parametrize("mudanca", [
+    {"valor": None},                    # dividendo sem valor
+    {"valor": -1.0},                    # valor negativo
+    {"fator": 2.0},                     # dividendo com fator
+    {"tipo": "bonus"},                  # tipo desconhecido
+])
+def test_proventos_invalidos(conn, mudanca):
+    with pytest.raises(sqlite3.IntegrityError, match="CHECK"):
+        _inserir(conn, "proventos", {**PROVENTO, **mudanca})
+
+
+def test_demonstracoes_unicidade_com_datas_nulas(conn):
+    linha = {"codigo_cvm": "9512", "tipo_doc": "DFP", "data_referencia": "2025-12-31", "versao": 1,
+             "demonstrativo": "BPA", "consolidado": 1, "data_ini": None, "data_fim": "2025-12-31",
+             "cd_conta": "1", "ds_conta": "Ativo Total", "valor": 1e12,
+             "disponivel_em": TS, "coletado_em": TS}
+    _inserir(conn, "demonstracoes", linha)
+    # data_ini nula não pode abrir brecha para duplicata
+    with pytest.raises(sqlite3.IntegrityError, match="UNIQUE"):
+        _inserir(conn, "demonstracoes", linha)
+    # outra versão (reapresentação) é outra linha
+    _inserir(conn, "demonstracoes", {**linha, "versao": 2})

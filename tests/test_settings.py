@@ -25,8 +25,18 @@ def test_csv_do_projeto_e_valido():
 def test_normaliza_campos(tmp_path):
     p = _csv(tmp_path, CABECALHO + " petr4 ,Petrobras,,,\n\n")
     assert carregar_ativos(p) == [
-        {"ticker": "PETR4", "nome": "Petrobras", "setor": None, "cnpj": None, "ativo": 1}
+        {"ticker": "PETR4", "nome": "Petrobras", "setor": None, "cnpj": None, "ativo": 1,
+         "apelidos": None, "tipo": "acao"}
     ]
+
+
+def test_colunas_opcionais(tmp_path):
+    p = _csv(tmp_path, "ticker,nome,setor,cnpj,ativo,apelidos,tipo\n"
+                       "VALE3,Vale,,,1, Vale S.A. || mineradora Vale ,\n"
+                       "BOVA11,iShares Ibovespa,,,1,,benchmark\n")
+    vale, bova = carregar_ativos(p)
+    assert vale["apelidos"] == "Vale S.A.|mineradora Vale" and vale["tipo"] == "acao"
+    assert bova["apelidos"] is None and bova["tipo"] == "benchmark"
 
 
 @pytest.mark.parametrize(
@@ -37,6 +47,7 @@ def test_normaliza_campos(tmp_path):
         (CABECALHO + "PETRO,Petrobras,,,1\n", "ticker inválido"),
         (CABECALHO + "PETR4,Petrobras,,,sim\n", "deve ser 0 ou 1"),
         (CABECALHO + "PETR4,,,,1\n", "nome vazio"),
+        ("ticker,nome,setor,cnpj,ativo,tipo\nPETR4,Petrobras,,,1,fundo\n", "coluna 'tipo'"),
     ],
 )
 def test_csv_invalido_gera_erro_claro(tmp_path, conteudo, trecho):

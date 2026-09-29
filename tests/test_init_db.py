@@ -6,6 +6,7 @@ import pytest
 from config import settings
 from config.settings import carregar_ativos
 from scripts.init_db import main
+from src.db.migracoes import MIGRACOES
 
 
 @pytest.fixture(autouse=True)
@@ -36,7 +37,7 @@ def test_roda_duas_vezes_sem_erro_nem_duplicata(tmp_path):
     assert main(["--db", str(db)]) == 0
     assert _contagens(db) == primeira
     assert primeira["ativos"] == len(carregar_ativos())
-    assert primeira["schema_versao"] == 1
+    assert primeira["schema_versao"] == len(MIGRACOES)
 
 
 def test_csv_invalido_retorna_erro(tmp_path):

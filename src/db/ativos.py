@@ -26,22 +26,27 @@ def sincronizar_ativos(conn: sqlite3.Connection, ativos: list[dict]) -> dict[str
     with conn:
         for a in ativos:
             existe = conn.execute("SELECT 1 FROM ativos WHERE ticker = ?", (a["ticker"],)).fetchone()
+            dados = {"apelidos": None, "tipo": "acao", **a, "agora": agora}
             cur = conn.execute(
                 """
-                INSERT INTO ativos (ticker, nome, setor, cnpj, ativo, criado_em, atualizado_em)
-                VALUES (:ticker, :nome, :setor, :cnpj, :ativo, :agora, :agora)
+                INSERT INTO ativos (ticker, nome, setor, cnpj, ativo, apelidos, tipo, criado_em, atualizado_em)
+                VALUES (:ticker, :nome, :setor, :cnpj, :ativo, :apelidos, :tipo, :agora, :agora)
                 ON CONFLICT (ticker) DO UPDATE SET
                     nome = excluded.nome,
                     setor = excluded.setor,
                     cnpj = COALESCE(excluded.cnpj, ativos.cnpj),
                     ativo = excluded.ativo,
+                    apelidos = excluded.apelidos,
+                    tipo = excluded.tipo,
                     atualizado_em = excluded.atualizado_em
                 WHERE ativos.nome IS NOT excluded.nome
                    OR ativos.setor IS NOT excluded.setor
                    OR ativos.cnpj IS NOT COALESCE(excluded.cnpj, ativos.cnpj)
                    OR ativos.ativo IS NOT excluded.ativo
+                   OR ativos.apelidos IS NOT excluded.apelidos
+                   OR ativos.tipo IS NOT excluded.tipo
                 """,
-                {**a, "agora": agora},
+                dados,
             )
             if cur.rowcount:
                 contagem["atualizados" if existe else "inseridos"] += 1

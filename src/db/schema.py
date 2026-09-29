@@ -145,3 +145,62 @@ CREATE TABLE revisoes (
     {_ts("detectado_em")}
 );
 """
+
+
+SCHEMA_V2 = f"""
+-- Termos para achar a empresa em notícias (separados por '|'; vazio = usa o nome)
+-- e tipo do papel: 'benchmark' (ex: BOVA11) é coletado mas não entra no ranking.
+ALTER TABLE ativos ADD COLUMN apelidos TEXT;
+ALTER TABLE ativos ADD COLUMN tipo TEXT NOT NULL DEFAULT 'acao' CHECK (tipo IN ('acao', 'benchmark'));
+
+-- Proventos, usados para ajustar os preços brutos da B3 (etapa 3).
+-- dividendo: `valor` em R$ por ação (JCP incluso; eventos na mesma data vêm somados).
+-- desdobramento: `fator` = ações novas por ação antiga (2 = desdobramento 2:1;
+-- 0.1 = grupamento 10:1). Valores do Yahoo já vêm na escala de ações atual.
+CREATE TABLE proventos (
+    id            INTEGER PRIMARY KEY,
+    ticker        TEXT NOT NULL REFERENCES ativos (ticker),
+    tipo          TEXT NOT NULL CHECK (tipo IN ('dividendo', 'desdobramento')),
+    {_data("data_ex")},
+    valor         REAL,
+    fator         REAL,
+    fonte         TEXT NOT NULL,
+    {_ts("disponivel_em")},
+    {_ts("coletado_em")},
+    UNIQUE (ticker, fonte, tipo, data_ex),
+    -- COALESCE(... , 0): sem ele, valor NULL tornaria o CHECK NULL, e o SQLite aprova
+    CHECK ((tipo = 'dividendo' AND COALESCE(valor > 0, 0) AND fator IS NULL)
+        OR (tipo = 'desdobramento' AND COALESCE(fator > 0, 0) AND valor IS NULL))
+);
+
+-- Demonstrações financeiras da CVM (DFP anual e ITR trimestral), formato longo:
+-- uma linha por conta. Todas as versões (reapresentações) são guardadas; cada
+-- uma vale a partir do seu `disponivel_em` (data de entrega), o que permite
+-- reconstruir o que se sabia em cada data. `valor` já está em reais.
+-- demonstrativo 'CAPITAL' guarda a composição do capital (número de ações).
+CREATE TABLE demonstracoes (
+    id              INTEGER PRIMARY KEY,
+    codigo_cvm      TEXT NOT NULL,
+    tipo_doc        TEXT NOT NULL CHECK (tipo_doc IN ('DFP', 'ITR')),
+    {_data("data_referencia")},
+    versao          INTEGER NOT NULL,
+    demonstrativo   TEXT NOT NULL,           -- BPA, BPP, DRE, DFC_MD, DFC_MI, DVA, CAPITAL
+    consolidado     INTEGER NOT NULL CHECK (consolidado IN (0, 1)),
+    {_data("data_ini", obrigatorio=False)},  -- início do período (vazio em balanço)
+    {_data("data_fim", obrigatorio=False)},  -- fim do período / data do balanço
+    cd_conta        TEXT NOT NULL,
+    ds_conta        TEXT,
+    valor           REAL,
+    {_ts("disponivel_em")},
+    {_ts("coletado_em")}
+);
+-- COALESCE porque, no SQLite, NULLs são sempre distintos em índices únicos.
+CREATE UNIQUE INDEX uq_demonstracoes ON demonstracoes (
+    codigo_cvm, tipo_doc, data_referencia, versao, demonstrativo, consolidado,
+    cd_conta, COALESCE(data_ini, ''), COALESCE(data_fim, '')
+);
+CREATE INDEX idx_demonstracoes_documento ON demonstracoes (
+    codigo_cvm, tipo_doc, data_referencia, versao, demonstrativo, consolidado, cd_conta
+);
+CREATE INDEX idx_demonstracoes_cia_disponivel ON demonstracoes (codigo_cvm, disponivel_em);
+"""

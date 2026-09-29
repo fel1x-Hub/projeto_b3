@@ -50,6 +50,8 @@ O universo de papéis acompanhados, sincronizado a partir de [config/ativos.csv]
 | cnpj | TEXT | Preenchido na etapa 2 (cadastro CVM). Um valor vazio no CSV não apaga o que já está no banco. |
 | codigo_cvm | TEXT | Liga os documentos da CVM ao ticker. |
 | ativo | INTEGER 0/1 | 0 = não acompanhado. |
+| apelidos | TEXT | *(v2)* Termos para achar a empresa em notícias, separados por `\|`. Se vazio, usa o `nome`. |
+| tipo | TEXT | *(v2)* `acao` ou `benchmark`. Benchmarks (ex.: BOVA11) são coletados, mas não entram no ranking. |
 | criado_em, atualizado_em | timestamp | |
 
 As linhas nunca são apagadas. Um ticker removido do CSV vira `ativo = 0` e mantém o histórico ligado a ele.
@@ -64,12 +66,12 @@ Preços diários por pregão.
 | data | data | Data do pregão. |
 | abertura, maxima, minima | REAL > 0 | Opcionais. |
 | fechamento | REAL > 0 NOT NULL | |
-| fechamento_ajustado | REAL > 0 | Ajustado por proventos e desdobramentos; é a base dos retornos na etapa 3. |
+| fechamento_ajustado | REAL > 0 | Vazio na fonte B3 (que traz preço bruto). O ajuste é calculado em código na etapa 3, a partir de `proventos`. |
 | volume | INTEGER ≥ 0 | Quantidade negociada. |
-| fonte | TEXT | brapi, yfinance... |
+| fonte | TEXT | `b3_cotahist` (arquivo oficial da B3). |
 | disponivel_em, coletado_em | timestamp | |
 
-Chave única: `(ticker, data, fonte)`. As duas fontes podem guardar o mesmo pregão lado a lado, e quem consome escolhe a preferida.
+Chave única: `(ticker, data, fonte)`. Se outra fonte for adicionada, as duas guardam o mesmo pregão lado a lado, e quem consome escolhe a preferida.
 
 ### `macro`
 Séries macroeconômicas (Selic, IPCA, câmbio).
@@ -136,6 +138,51 @@ Fatos relevantes, ITR, DFP e releases.
 Chave única: `(fonte, id_externo)`. Índice: `(ticker, disponivel_em)`.
 
 Se os dados estruturados da CVM (as contas de DFP/ITR) pedirem uma tabela própria, ela entra como uma nova migração na etapa 2.
+
+### `proventos` *(v2)*
+Dividendos e desdobramentos. São usados na etapa 3 para ajustar os preços brutos da B3.
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | INTEGER PK | |
+| ticker | TEXT FK → ativos | |
+| tipo | TEXT | `dividendo` ou `desdobramento`. |
+| data_ex | data | Primeiro pregão sem direito ao provento. |
+| valor | REAL > 0 | Só para `dividendo`: R$ por ação. JCP está incluído, e eventos na mesma data vêm **somados** pelo Yahoo. |
+| fator | REAL > 0 | Só para `desdobramento`: ações novas por ação antiga (2 = desdobramento 2:1; 0,1 = grupamento 10:1). |
+| fonte | TEXT | `yfinance`. |
+| disponivel_em | timestamp | Data ex às 00:00 BRT. O Yahoo não informa a data de anúncio, que é sempre anterior. |
+| coletado_em | timestamp | |
+
+Chave única: `(ticker, fonte, tipo, data_ex)`.
+
+Os valores do Yahoo vêm na **escala de ações atual**, isto é, já divididos pelos desdobramentos posteriores. Para comparar com o preço bruto da época, multiplique pelos fatores dos desdobramentos que aconteceram depois da data ex.
+
+### `demonstracoes` *(v2)*
+As demonstrações financeiras da CVM (DFP anual e ITR trimestral), em formato longo, com uma linha por conta.
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | INTEGER PK | |
+| codigo_cvm | TEXT | Liga com `ativos.codigo_cvm`. É por empresa, e não por ticker: PETR3 e PETR4 compartilham o mesmo código. |
+| tipo_doc | TEXT | `DFP` ou `ITR`. |
+| data_referencia | data | Fim do exercício ou do trimestre. |
+| versao | INTEGER | 1 = original; valores maiores são reapresentações. |
+| demonstrativo | TEXT | `BPA`, `BPP`, `DRE`, `DFC_MD`, `DFC_MI`, `DVA` ou `CAPITAL` (número de ações). |
+| consolidado | INTEGER 0/1 | |
+| data_ini | data | Início do período. Vazio em balanço patrimonial e em `CAPITAL`. |
+| data_fim | data | Fim do período, ou data do balanço. |
+| cd_conta | TEXT | Código da conta (ex.: `3.11` = lucro líquido). Em `CAPITAL`, é o nome da coluna da CVM. |
+| ds_conta | TEXT | Descrição da conta. |
+| valor | REAL | Em **reais**, com a escala MIL já aplicada. Em `CAPITAL`, é o número de ações. |
+| disponivel_em | timestamp | Data de entrega (`DT_RECEB`) às 23:59:59 BRT. |
+| coletado_em | timestamp | |
+
+Só guardo o exercício "ÚLTIMO" de cada documento, porque o "PENÚLTIMO" é apenas a coluna comparativa. Todas as versões são guardadas.
+
+**Uso ponto-no-tempo:** para uma data D, use, por documento, a maior `versao` com `disponivel_em <= D`.
+
+Índice único: sobre a identidade completa da linha, com `COALESCE` nas datas, porque no SQLite dois NULLs nunca colidem num índice único.
 
 ### `execucoes_coleta`
 Uma linha por fonte a cada execução da coleta.

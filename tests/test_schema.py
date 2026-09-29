@@ -7,10 +7,12 @@ from src.db.migracoes import MIGRACOES, migrar, versao_atual
 TABELAS = {
     "ativos", "cotacoes", "macro", "noticias", "noticias_ativos",
     "documentos", "execucoes_coleta", "revisoes", "schema_versao",
+    "proventos", "demonstracoes",
 }
 INDICES = {
     "idx_noticias_disponivel_em", "idx_noticias_ativos_ticker",
     "idx_documentos_ticker_disponivel", "idx_execucoes_fonte_inicio",
+    "uq_demonstracoes", "idx_demonstracoes_documento", "idx_demonstracoes_cia_disponivel",
 }
 
 
@@ -55,3 +57,14 @@ def test_aplica_somente_migracoes_novas(conn_vazia):
 def test_rejeita_versoes_fora_de_ordem(conn_vazia):
     with pytest.raises(ValueError, match="crescentes"):
         migrar(conn_vazia, [(2, "SELECT 1;"), (1, "SELECT 1;")])
+
+
+def test_migracao_2_sobre_banco_v1_com_dados(conn_vazia):
+    migrar(conn_vazia, MIGRACOES[:1])
+    with conn_vazia:
+        conn_vazia.execute("INSERT INTO ativos (ticker, nome, ativo, criado_em, atualizado_em) "
+                           "VALUES ('PETR4', 'Petrobras', 1, '2026-01-02T21:00:00+00:00', "
+                           "'2026-01-02T21:00:00+00:00')")
+    assert migrar(conn_vazia) == 2
+    linha = conn_vazia.execute("SELECT tipo, apelidos FROM ativos").fetchone()
+    assert tuple(linha) == ("acao", None)
