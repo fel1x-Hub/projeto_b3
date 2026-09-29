@@ -33,16 +33,24 @@ def test_converter_vazio():
     assert yp.converter("X", None, date(2021, 1, 1)) == []
 
 
+def test_dividendo_volta_para_escala_bruta_da_epoca():
+    # BBAS3 real: JCP de 0,205 (escala Yahoo) em mar/2024, desdobramento 2:1 em abr/2024
+    acoes = _acoes(("2024-03-12", 0.205018, 0.0), ("2024-04-16", 0.0, 2.0), ("2024-06-01", 0.3, 0.0))
+    regs = {r["data_ex"]: r for r in yp.converter("BBAS3", acoes, date(2021, 1, 1))}
+    assert regs["2024-03-12"]["valor"] == pytest.approx(0.410036)  # x2: antes do desdobramento
+    assert regs["2024-06-01"]["valor"] == pytest.approx(0.3)       # depois: já está na escala da época
+
+
 def test_coleta_incremental_e_revisao(conn):
     buscar = {"PETR4": WEGE}.__getitem__
     assert yp.coletar(conn, date(2021, 1, 1), buscar=buscar, pausa=0) == 2
     assert yp.coletar(conn, date(2021, 1, 1), buscar=buscar, pausa=0) == 0
 
-    # Yahoo reescala o histórico (ex: após novo desdobramento) -> revisão registrada
-    reescalado = _acoes(("2021-04-28", 0.0, 2.0), ("2026-09-21", 0.053606, 0.0))
-    yp.coletar(conn, date(2021, 1, 1), buscar={"PETR4": reescalado}.__getitem__, pausa=0)
+    # fonte corrige um valor -> revisão registrada
+    corrigido = _acoes(("2021-04-28", 0.0, 2.0), ("2026-09-21", 0.110000, 0.0))
+    yp.coletar(conn, date(2021, 1, 1), buscar={"PETR4": corrigido}.__getitem__, pausa=0)
     rev = conn.execute("SELECT campo, valor_antigo, valor_novo FROM revisoes").fetchone()
-    assert tuple(rev) == ("valor", "0.107212", "0.053606")
+    assert tuple(rev) == ("valor", "0.107212", "0.11")
 
 
 def test_falha_de_um_ticker_e_parcial(conn):

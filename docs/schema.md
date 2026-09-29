@@ -157,7 +157,7 @@ Dividendos e desdobramentos. São usados na etapa 3 para ajustar os preços brut
 
 Chave única: `(ticker, fonte, tipo, data_ex)`.
 
-Os valores do Yahoo vêm na **escala de ações atual**, isto é, já divididos pelos desdobramentos posteriores. Para comparar com o preço bruto da época, multiplique pelos fatores dos desdobramentos que aconteceram depois da data ex.
+O `valor` está na **escala bruta da época**: casa com o preço bruto da B3 no mesmo dia. O Yahoo divide dividendos antigos pelos desdobramentos posteriores, e a coleta desfaz isso multiplicando pelos fatores dos desdobramentos com data ex posterior.
 
 ### `demonstracoes` *(v2)*
 As demonstrações financeiras da CVM (DFP anual e ITR trimestral), em formato longo, com uma linha por conta.

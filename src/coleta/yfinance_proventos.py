@@ -6,9 +6,8 @@ ativo, com pausa entre elas, e falhas por ticker viram coleta parcial.
 
 Particularidades do Yahoo (documentadas em docs/schema.md):
 - Dividendos e JCP na mesma data vêm somados numa linha só.
-- Valores já vêm na escala atual de ações (divididos por desdobramentos
-  posteriores); quando houver um desdobramento novo, o Yahoo reescala o
-  histórico e isso aparece como revisões.
+- O Yahoo divide dividendos antigos por desdobramentos posteriores; o valor é
+  convertido de volta para a escala bruta da época (ver `converter`).
 - Não há data de anúncio: `disponivel_em` = data ex às 00:00 BRT (o anúncio é
   sempre anterior à data ex, então o dado já era público nesse momento).
 """
@@ -39,12 +38,20 @@ def _buscar_yahoo(ticker: str) -> pd.DataFrame:
 
 
 def converter(ticker: str, acoes: pd.DataFrame, desde: date) -> list[dict]:
-    """DataFrame de `actions` (Dividends, Stock Splits) -> linhas de `proventos`."""
+    """DataFrame de `actions` (Dividends, Stock Splits) -> linhas de `proventos`.
+
+    O Yahoo divide dividendos antigos pelos desdobramentos posteriores (escala
+    de ações atual). Aqui o valor volta para a escala BRUTA da época:
+    dividendo x produto dos fatores de desdobramento com data ex posterior.
+    Assim o valor guardado não depende de eventos futuros e casa com o preço
+    bruto da B3 no mesmo dia.
+    """
     registros = []
     if acoes is None or acoes.empty:
         return registros
-    for instante, linha in acoes.iterrows():
-        data_ex = pd.Timestamp(instante).date()
+    datas = [pd.Timestamp(i).date() for i in acoes.index]
+    desdobramentos = [(d, float(f)) for d, f in zip(datas, acoes.get("Stock Splits", [0] * len(datas))) if f and f > 0]
+    for data_ex, (_, linha) in zip(datas, acoes.iterrows()):
         if data_ex < desde:
             continue
         base = {"ticker": ticker, "data_ex": data_ex.isoformat(), "fonte": FONTE,
@@ -52,7 +59,11 @@ def converter(ticker: str, acoes: pd.DataFrame, desde: date) -> list[dict]:
         dividendo = float(linha.get("Dividends", 0) or 0)
         fator = float(linha.get("Stock Splits", 0) or 0)
         if dividendo > 0:
-            registros.append({**base, "tipo": "dividendo", "valor": round(dividendo, 8), "fator": None})
+            escala = 1.0
+            for d, f in desdobramentos:
+                if d > data_ex:
+                    escala *= f
+            registros.append({**base, "tipo": "dividendo", "valor": round(dividendo * escala, 8), "fator": None})
         if fator > 0:
             registros.append({**base, "tipo": "desdobramento", "valor": None, "fator": fator})
     return registros
