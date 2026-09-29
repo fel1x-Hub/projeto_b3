@@ -6,7 +6,7 @@ Uso:
     python scripts/coletar.py --desde 2020-01-01   # carga histórica a partir de uma data
 
 Fontes: cvm (cadastro, documentos e demonstrações), b3 (cotações),
-proventos (yfinance), bcb (macro) e rss (notícias).
+proventos (yfinance + config/eventos_manuais.csv), bcb (macro) e rss (notícias).
 A coleta é incremental: rodar de novo só traz o que ainda não está no banco.
 Sem --desde, a carga inicial cobre HISTORICO_ANOS (padrão 5) anos.
 Uma fonte com erro não interrompe as outras; o código de saída é 1 se
@@ -23,7 +23,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import settings  # noqa: E402
 from src.coleta import (  # noqa: E402
-    b3_cotahist, bcb_sgs, cvm_cadastro, cvm_dfp_itr, cvm_ipe, noticias_rss, resumo, yfinance_proventos,
+    b3_cotahist, bcb_sgs, cvm_cadastro, cvm_dfp_itr, cvm_ipe, eventos_manuais, noticias_rss, resumo,
+    yfinance_proventos,
 )
 from src.coleta.execucao import executar  # noqa: E402
 from src.db.ativos import sincronizar_ativos  # noqa: E402
@@ -40,6 +41,7 @@ FONTES = [
     (cvm_cadastro.FONTE, cvm_cadastro.coletar, "cvm"),
     (b3_cotahist.FONTE, b3_cotahist.coletar, "b3"),
     (yfinance_proventos.FONTE, yfinance_proventos.coletar, "proventos"),
+    (eventos_manuais.FONTE, eventos_manuais.coletar, "proventos"),
     (bcb_sgs.FONTE, bcb_sgs.coletar, "bcb"),
     (cvm_ipe.FONTE, cvm_ipe.coletar, "cvm"),
     (cvm_dfp_itr.FONTE, cvm_dfp_itr.coletar, "cvm"),

@@ -151,7 +151,7 @@ Dividendos e desdobramentos. São usados na etapa 3 para ajustar os preços brut
 | data_ex | data | Primeiro pregão sem direito ao provento. |
 | valor | REAL > 0 | Só para `dividendo`: R$ por ação. JCP está incluído, e eventos na mesma data vêm **somados** pelo Yahoo. |
 | fator | REAL > 0 | Só para `desdobramento`: ações novas por ação antiga (2 = desdobramento 2:1; 0,1 = grupamento 10:1). |
-| fonte | TEXT | `yfinance`. |
+| fonte | TEXT | `yfinance`, ou `manual` para eventos de `config/eventos_manuais.csv` (ex.: cisão XP/Itaú), sempre com referência ao documento oficial. |
 | disponivel_em | timestamp | Data ex às 00:00 BRT. O Yahoo não informa a data de anúncio, que é sempre anterior. |
 | coletado_em | timestamp | |
 
