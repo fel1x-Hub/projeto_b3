@@ -17,7 +17,7 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 | # | Etapa | Arquivo | Status |
 |---|-------|---------|--------|
 | 1 | Fundação e banco de dados | [etapas/etapa1.md](etapas/etapa1.md) | ✅ concluída |
-| 2 | Coleta de dados | [etapas/etapa2.md](etapas/etapa2.md) | 🔨 em andamento |
+| 2 | Coleta de dados | [etapas/etapa2.md](etapas/etapa2.md) | ✅ concluída |
 | 3 | Extração de sinais | [etapas/etapa3.md](etapas/etapa3.md) | ⏳ pendente |
 | 4 | Modelo de ranking | [etapas/etapa4.md](etapas/etapa4.md) | ⏳ pendente |
 | 5 | Backtest e paper trading | [etapas/etapa5.md](etapas/etapa5.md) | ⏳ pendente |
@@ -28,8 +28,8 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
 
 ## Configuração do usuário
-- Ativos: lista editável em `config/ativos.csv` (20 iniciais: os 5 do exemplo + maiores da B3). Para adicionar, incluir linha e rodar `python scripts/init_db.py`.
-- Hardware: [ex: notebook sem GPU / RTX 3060 12GB]
+- Ativos: lista editável em `config/ativos.csv` (20 ações: os 5 do exemplo + maiores da B3; BOVA11 como benchmark). Para adicionar, incluir linha (com `apelidos` para busca em notícias) e rodar `python scripts/coletar.py`. Feeds de notícias em `config/feeds.csv`.
+- Hardware: 16 GB RAM, GPU Intel UHD integrada (sem CUDA), ~200 GB livres. Sem GPU: sentimento com modelo pronto em CPU ou LLM via API; fine-tuning local inviável.
 - Experiência: intermediário
 - Python: 3.13, ambiente virtual em `.venv`
 - Repositório: https://github.com/fel1x-Hub/projeto_b3 (branch `main`, commits regulares por passo)
@@ -91,6 +91,7 @@ Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
 - Instalar backend: `pip install -r requirements.txt`
 - Instalar frontend: `cd frontend && npm install`
 - Criar/atualizar banco (idempotente): `python scripts/init_db.py` — schema documentado em `docs/schema.md`
+- Coletar dados (incremental; 1ª vez = 5 anos): `python scripts/coletar.py` — `--fonte cvm|b3|proventos|bcb|rss`, `--desde AAAA-MM-DD`
 - Testes: `pytest`
 - Dev local (backend): `uvicorn src.api.main:app --reload`
 - Dev local (frontend): `cd frontend && npm run dev`

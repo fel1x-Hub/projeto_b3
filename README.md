@@ -12,7 +12,8 @@ python -m venv .venv
 pip install -r requirements.txt
 copy .env.example .env            # ajuste se quiser
 python scripts/init_db.py         # cria data/b3.db
+python scripts/coletar.py         # baixa 5 anos de dados (depois, só o que faltar)
 pytest
 ```
 
-Ativos acompanhados: [config/ativos.csv](config/ativos.csv). Schema do banco: [docs/schema.md](docs/schema.md).
+Ativos acompanhados: [config/ativos.csv](config/ativos.csv). Feeds de notícias: [config/feeds.csv](config/feeds.csv). Schema do banco: [docs/schema.md](docs/schema.md).
