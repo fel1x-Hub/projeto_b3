@@ -8,10 +8,11 @@ o LLM precisar ler o documento.
 `disponivel_em` = Data_Entrega às 23:59:59 BRT: o arquivo só informa o dia da
 entrega, não a hora; supor o fim do dia é o conservador.
 Cada reapresentação (Versao) é um documento próprio (`id_externo` =
-protocolo + versão), com a sua própria data de entrega.
+protocolo-numSequencia-vVersao), com a sua própria data de entrega.
 """
 
 import logging
+import re
 import sqlite3
 from datetime import date, time
 
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 FONTE = "cvm_ipe"
 CHAVES = ["fonte", "id_externo"]
+_SEQUENCIA = re.compile(r"numSequencia=(\d+)")
 CATEGORIAS = {
     "Fato Relevante": "fato_relevante",
     "Comunicado ao Mercado": "comunicado",
@@ -37,6 +39,15 @@ def _data_ou_none(texto: str) -> date | None:
         return date.fromisoformat((texto or "").strip())
     except ValueError:
         return None
+
+
+def id_documento(r: dict) -> str:
+    """Identificador único: um mesmo protocolo de entrega pode conter vários
+    documentos (ex: release em português e em inglês); o que os distingue é o
+    `numSequencia` do link de download."""
+    m = _SEQUENCIA.search(r["Link_Download"] or "")
+    sequencia = m.group(1) if m else "0"
+    return f"{r['Protocolo_Entrega']}-{sequencia}-v{r['Versao']}"
 
 
 def converter(linhas: list[dict], empresas: dict[str, list[str]], desde: date) -> list[dict]:
@@ -55,7 +66,7 @@ def converter(linhas: list[dict], empresas: dict[str, list[str]], desde: date) -
             "ticker": tickers[0],  # empresa com vários tickers acompanhados: o primeiro em ordem alfabética
             "data_referencia": referencia.isoformat() if referencia else None,
             "fonte": FONTE,
-            "id_externo": f"{r['Protocolo_Entrega']}-v{r['Versao']}",
+            "id_externo": id_documento(r),
             "url": r["Link_Download"] or None,
             "assunto": (r["Assunto"] or "").strip() or None,
             "disponivel_em": iso_brt(entrega, time(23, 59, 59)),
