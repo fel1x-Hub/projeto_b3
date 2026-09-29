@@ -16,3 +16,6 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+
+# Arquivos de ferramentas externas do editor
+.skales-backup/
