@@ -31,3 +31,10 @@ def test_ordem_do_texto_e_ordem_cronologica():
 def test_agora_no_formato_padrao():
     agora = agora_utc_iso()
     assert agora.endswith("+00:00") and len(agora) == 25
+
+
+def test_iso_brt():
+    from datetime import date, time
+    from src.db.tempo import iso_brt
+    assert iso_brt(date(2026, 1, 2), time(19, 0)) == "2026-01-02T22:00:00+00:00"
+    assert iso_brt(date(2026, 1, 2), time(23, 59, 59)) == "2026-01-03T02:59:59+00:00"

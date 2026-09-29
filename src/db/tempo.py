@@ -7,9 +7,11 @@ filtros como `disponivel_em <= ?` funcionam direto no SQL (regra anti
 look-ahead). O schema rejeita valores fora desse formato.
 """
 
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
+from zoneinfo import ZoneInfo
 
 FORMATO_TS = "%Y-%m-%dT%H:%M:%S+00:00"
+FUSO_B3 = ZoneInfo("America/Sao_Paulo")  # no Windows, vem do pacote tzdata
 
 
 def para_iso_utc(dt: datetime) -> str:
@@ -25,3 +27,16 @@ def para_iso_utc(dt: datetime) -> str:
 
 def agora_utc_iso() -> str:
     return para_iso_utc(datetime.now(timezone.utc))
+
+
+def iso_brt(dia: date, hora: time) -> str:
+    """Timestamp padrão para `dia` às `hora` no horário de Brasília.
+
+    Usado para montar `disponivel_em` a partir de regras como "fim do pregão"
+    ou "fim do dia de entrega" quando a fonte só informa a data.
+    """
+    return para_iso_utc(datetime.combine(dia, hora, tzinfo=FUSO_B3))
+
+
+def hoje_brt() -> date:
+    return datetime.now(FUSO_B3).date()
