@@ -68,7 +68,20 @@ Cada notícia associada ao ativo entra no primeiro pregão cujo corte é igual o
 | `sent_media_21d` | Score médio das notícias dos últimos 21 pregões. |
 | `sent_delta` | `sent_media_dia − sent_media_21d`. |
 
-**Limitação:** o RSS não tem histórico, então há sinais só a partir do início da coleta de notícias (set/2026). A qualidade do modelo é medida em [sentimento_avaliacao.md](sentimento_avaliacao.md).
+**Limitação:** o RSS não tem histórico, então há sinais só a partir do início da coleta de notícias (29/09/2026).
+
+**Qualidade** (detalhes em [sentimento_avaliacao.md](sentimento_avaliacao.md)). Medida em 100 notícias rotuladas pelo Claude:
+
+| | Acurácia | F1 macro |
+|---|---|---|
+| Modelo | 69% | 0,67 |
+| Linha de base "sempre neutro" | 58% | 0,245 |
+
+O modelo passa do limite de 0,6 combinado, mas tem um **viés para o negativo**: acerta 96% dos negativos, porém só 48% do que chama de negativo é mesmo negativo. Ele lê verbos de queda sem o contexto de mercado:
+- "juros recuam" e "dólar recua" são bons para a bolsa, e ele marca como negativos;
+- "IGP-M sobe" é inflação subindo, e ele marca como positivo.
+
+Um viés constante afeta pouco o `sent_delta`, que compara com a média recente do próprio ativo. Se na etapa 4 o sentimento pesar no ranking, vale testar a classificação dos títulos pelo LLM (Gemini), que entende esse contexto.
 
 ## Eventos (`src/sinais/eventos.py`, a implementar)
 Extração com LLM (Gemini, plano grátis) de fatos relevantes e releases. Pendente da chave `GEMINI_API_KEY`.

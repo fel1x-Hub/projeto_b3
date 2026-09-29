@@ -92,6 +92,8 @@ Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
 - Instalar frontend: `cd frontend && npm install`
 - Criar/atualizar banco (idempotente): `python scripts/init_db.py` — schema documentado em `docs/schema.md`
 - Coletar dados (incremental; 1ª vez = 5 anos): `python scripts/coletar.py` — `--fonte cvm|b3|proventos|bcb|rss`, `--desde AAAA-MM-DD`
+- Gerar sinais + relatório de cobertura: `python scripts/gerar_sinais.py` — catálogo em `docs/sinais.md`
+- Medir qualidade do sentimento: `python scripts/avaliar_sentimento.py` (rótulos em `rotulos/`)
 - Testes: `pytest`
 - Dev local (backend): `uvicorn src.api.main:app --reload`
 - Dev local (frontend): `cd frontend && npm run dev`
