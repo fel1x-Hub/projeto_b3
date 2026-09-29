@@ -1,0 +1,21 @@
+ticker,nome,setor,cnpj,ativo
+PETR4,Petrobras,Petróleo e Gás,,1
+VALE3,Vale,Mineração,,1
+ITUB4,Itaú Unibanco,Bancos,,1
+BBAS3,Banco do Brasil,Bancos,,1
+WEGE3,WEG,Bens de Capital,,1
+BBDC4,Bradesco,Bancos,,1
+ABEV3,Ambev,Bebidas,,1
+B3SA3,B3,Serviços Financeiros,,1
+ITSA4,Itaúsa,Holdings,,1
+BPAC11,BTG Pactual,Bancos,,1
+SBSP3,Sabesp,Saneamento,,1
+PRIO3,PRIO,Petróleo e Gás,,1
+SUZB3,Suzano,Papel e Celulose,,1
+RDOR3,Rede D'Or,Saúde,,1
+EQTL3,Equatorial,Energia Elétrica,,1
+RENT3,Localiza,Aluguel de Veículos,,1
+VIVT3,Telefônica Brasil (Vivo),Telecomunicações,,1
+RADL3,Raia Drogasil,Varejo Farmacêutico,,1
+GGBR4,Gerdau,Siderurgia,,1
+CMIG4,Cemig,Energia Elétrica,,1
