@@ -73,3 +73,30 @@ def test_janelas_de_consulta():
     bcb_sgs.buscar_sgs(http, 1, date(2011, 1, 1), date(2026, 1, 1))
     assert len(chamadas) == 4  # 15 anos em janelas de 5
     assert chamadas[0]["dataInicial"] == "01/01/2011"
+
+
+def test_resposta_fora_do_formato_tenta_de_novo(conn):
+    respostas = iter([{"erro": {"statusCode": 500}}, "<html>manutenção</html>"])
+    rota = _rota_sgs(SGS)
+
+    def instavel(url, params):
+        return next(respostas, None) or rota(url, params)
+
+    esperas = []
+    http = HTTPFalso({"api.bcb.gov.br": instavel, "servicodados.ibge.gov.br": IBGE})
+    assert bcb_sgs.coletar(conn, date(2026, 6, 1), http=http, dormir=esperas.append) == 6
+    assert esperas == [2.0, 4.0]
+
+
+def test_serie_quebrada_nao_impede_as_outras(conn):
+    from src.coleta.execucao import ColetaParcial
+    rota = _rota_sgs(SGS)
+
+    def cdi_quebrado(url, params):
+        return {"erro": "sempre"} if "sgs.12/" in url else rota(url, params)
+
+    http = HTTPFalso({"api.bcb.gov.br": cdi_quebrado, "servicodados.ibge.gov.br": IBGE})
+    with pytest.raises(ColetaParcial, match="cdi") as e:
+        bcb_sgs.coletar(conn, date(2026, 6, 1), http=http, dormir=lambda s: None)
+    assert e.value.novos == 5  # selic (2) + ptax (1) + ipca (2)
+    assert {s for s, _ in _macro(conn)} == {"selic_meta", "ptax_venda", "ipca"}
