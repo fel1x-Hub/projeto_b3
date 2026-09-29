@@ -1,0 +1,101 @@
+noticia_id,fonte,titulo,rotulo,rotulado_por
+1,rss_infomoney,"Novo Nordisk pagará até US$ 2,6 bi à empresa chinesa por pílula para perda de peso",neutro,claude
+3,rss_infomoney,Preso pode votar? Entenda o que diz a lei eleitoral,neutro,claude
+4,rss_infomoney,Eleições 2026: veja a ordem de votação na urna e como votar sem erros,neutro,claude
+5,rss_infomoney,Começa hoje período em que eleitores não podem ser presos; veja exceções,neutro,claude
+6,rss_infomoney,"China amplia crédito barato para infraestrutura, tecnologia e compra de imóveis",positivo,claude
+14,rss_moneytimes,"Mais etanol, mas para quem? A grande incógnita, segundo o Bradesco",neutro,claude
+15,rss_moneytimes,"Proibição das bets: Qual o impacto no setor imobiliário e nos FIIs, segundo CEO da SiiLA",neutro,claude
+16,rss_moneytimes,"Governo central tem déficit primário de R$ 13,585 bilhões em agosto, diz Tesouro",negativo,claude
+17,rss_moneytimes,Justiça de SP derruba cláusulas da 99Food que restringiam acordos de restaurantes com Keeta,negativo,claude
+18,rss_moneytimes,Vagas de emprego em aberto nos EUA caem em agosto; demissões permanecem baixas,neutro,claude
+20,rss_moneytimes,"Motiva, EcoRodovias e Eletromidia criam empresa de mídia para publicidade em rodovias",positivo,claude
+21,rss_exame,'LEGO One Piece: A Série' chega à Netflix; saiba tudo sobre a animação,neutro,claude
+27,rss_exame,"Sucessão na ONU: candidatos vão à nova sondagem, mas jogo do veto começa em outubro",neutro,claude
+29,rss_exame,"Livro best-seller 'A Hipótese do Amor' terá continuação, anuncia autora",neutro,claude
+32,rss_exame,Que horas começa a final do MasterChef Brasil 2026 hoje? Veja a programação,neutro,claude
+34,rss_exame,"Frieze London 2026 reúne seis artistas brasileiros, com solo de Márcia Falcão",neutro,claude
+35,rss_exame,"Que horas começa 'A Fazenda 18' nesta terça-feira, 29? Hoje tem formação de Roça",neutro,claude
+38,rss_exame,Real Time: Michelle Bolsonaro lidera corrida ao Senado no Distrito Federal com 27%,neutro,claude
+40,rss_exame,O Hulk vai estar em 'Vingadores: Doutor Destino'? Irmãos Russo respondem,neutro,claude
+43,rss_exame,Quanto R$ 10 mil rendem em CDI e dividendos: renda fixa ainda ganha?,neutro,claude
+44,rss_exame,Bitcoin sobe depois de recuar até os US$ 82 mil e continua atraindo fluxo comprador,positivo,claude
+45,rss_exame,Quanto é a multa por não votar? Saiba o que fazer caso não consiga justificar,neutro,claude
+46,rss_valor,Empresas tradicionais de vale-refeição perdem disputa judicial contra novatas,negativo,claude
+47,rss_valor,Ibovespa cai e dólar e juros longos sobem com exterior e eleição no foco,negativo,claude
+54,rss_valor,Setor de minerais críticos e Minas e Energia firmarão parceria para impulsionar pesquisa e exploração,positivo,claude
+55,rss_valor,Gibran Chedid explica como funciona o deep plane facelift,neutro,claude
+56,rss_valor,"Inadimplência recorde não reflete impacto do Desenrola, diz Rocha",negativo,claude
+57,rss_valor,Justiça de SP derruba cláusulas de banimento impostas pela 99Food a restaurantes,negativo,claude
+61,rss_valor,"Brasil foi só o ‘estacionamento do dinheiro’ estrangeiro no início do ano, diz Funchal",negativo,claude
+64,rss_valor,"Justiça autoriza busca e arresto de criptoativos de executivos ligados à Fictor, que tentou comprar o Banco Master",negativo,claude
+65,rss_valor,TRT-MG condena empresário e empresa por assédio eleitoral e dano moral coletivo,negativo,claude
+67,rss_valor,Fachin: Novas regras sobre precatórios devem ser apreciadas pelo CNJ em outubro,neutro,claude
+68,rss_valor,"B55: Crescimento de negócio depende das pessoas e empresário deve se focar nisso, contam fundadores",neutro,claude
+69,rss_valor,Rubio diz que EUA esperam que Cuba ‘escolha um caminho diferente’,neutro,claude
+70,rss_valor,MME diz que agendas da pasta e da ANP para gás natural avançam ‘de maneira alinhada’,neutro,claude
+71,rss_valor,Estrangeiros aportam R$ 370 milhões em ações da B3 em 25 de setembro,positivo,claude
+74,rss_valor,STF: Gilmar sugere ampliar controle sobre precatórios e fala em apuração de magistrados e advogados por supostas irregularidades,neutro,claude
+77,rss_valor,Nova pesquisa Datafolha para presidente mede impacto de escândalos antes do primeiro turno,neutro,claude
+78,rss_valor,"Índice de confiança do consumidor dos EUA tem queda em setembro, mostra Conference Board",negativo,claude
+79,rss_valor,"Vemos leve melhora na trajetória do déficit por causa da saída do efeito dos precatórios, diz secretário do Tesouro",positivo,claude
+80,rss_valor,Itaú lança solução para o comércio agêntico,positivo,claude
+82,rss_valor,"IA da Serv Medical pode economizar US$ 65 mi, diz ISPOR",positivo,claude
+84,rss_valor,"Redução do desemprego em agosto foi puxado por aumento de ocupado, mostra IBGE",positivo,claude
+85,rss_valor,Bolsas de NY rondam a estabilidade antes de dados de mercado de trabalho,neutro,claude
+86,rss_valor,SEO segue essencial para médicos na era da IA,neutro,claude
+89,rss_valor,China oferece crédito barato para ajudar estatais a quitar dívidas em atraso,neutro,claude
+90,rss_valor,Análise: O Iraque que Washington deixa para trás,neutro,claude
+93,rss_valor,"Ibovespa recua pressionado por Vale, em dia negativo para ativos de risco",negativo,claude
+96,rss_valor,Petrobras fecha contrato de 22 anos com Cheniere para compra de GNL,neutro,claude
+98,rss_valor,"Governo central tem déficit primário de R$ 13,585 bilhões em agosto",negativo,claude
+102,rss_valor,Atlas Critical Minerals estima 24 milhões de toneladas de minério de grafite em projeto em MG,positivo,claude
+103,rss_valor,Inteligência artificial muda a busca por médicos,neutro,claude
+105,rss_valor,BTG aprofunda presença na América Latina ao obter licença de banco no Peru,positivo,claude
+108,rss_valor,Dólar recua e real se alinha a pares emergentes após estresse na véspera,positivo,claude
+109,rss_valor,Forças dos EUA deixam Iraque após duas décadas e abrem espaço para o Irã,neutro,claude
+110,rss_valor,Juros futuros recuam com alívio externo,positivo,claude
+112,rss_valor,"Número de trabalhadores com carteira assinada alcança o recorde de 39,5 milhões, mostra IBGE",positivo,claude
+113,rss_valor,Pesquisadores de IA alertam sobre aceleração de desenvolvimento de sistemas apesar dos riscos de segurança,negativo,claude
+114,rss_valor,"Desemprego fica em 5,3% no trimestre até agosto, mostra IBGE",neutro,claude
+120,rss_valor,"Inadimplência nas operações de crédito atinge 5% em agosto, novo recorde histórico",negativo,claude
+121,rss_valor,"Novo Nordisk fecha acordo de até US$ 2,6 bi com chinesa Hengrui para remédio oral de perda de peso",neutro,claude
+125,rss_valor,Copasa nomeia Augusto Dantas Borges como diretor-presidente,neutro,claude
+128,rss_valor,Pearson adquire plataforma de inteligência de habilidades em IA Workera,neutro,claude
+130,rss_valor,"IGP-M sobe 1,57% em setembro acumula alta de 3,34% em 12 meses",negativo,claude
+131,rss_valor,"Manhã no mercado: Petróleo e juros americanos recuam, mas guerra no Irã e eleição mantêm investidores em alerta",neutro,claude
+132,rss_valor,Accor assina primeira conversão com marca Handwritten no Brasil,positivo,claude
+133,rss_valor,PF apreende R$ 220 mil em operação contra atuação de facção nas eleições,neutro,claude
+134,rss_valor,OpenAI pede desculpas por invasão de site do governo australiano e promete reconstruir a confiança,negativo,claude
+135,rss_valor,Agenda do dia: Pnad contínua e relatório sobre vagas em aberto nos EUA são destaque,neutro,claude
+136,rss_valor,OCDE: Brasil amplia número de professores nos primeiros anos do fundamental,neutro,claude
+138,rss_valor,"Gasto por aluno no Brasil é 70% menor que a média da OCDE, mostra relatório",neutro,claude
+140,rss_valor,Em quem tem que votar primeiro? Saiba a ordem nas eleições 2026,neutro,claude
+141,rss_valor,Capacitismo atinge 76% das pessoas com deficiência no mercado de trabalho,neutro,claude
+142,rss_valor,"Inflação da Espanha sobe para 5,0% ao ano em setembro, maior nível em três anos e meio",negativo,claude
+144,rss_valor,"O legado de dois arquitetos brasileiros que dialogam com a natureza, em vez de se impor a ela",neutro,claude
+146,rss_infomoney,Falha no motor da Starship pode afetar objetivos da missão lunar da Nasa,negativo,claude
+148,rss_valor,"Apple enfrenta nova ameaça da Muse, da Meta",negativo,claude
+149,rss_valor,Diretor da ANP diz ter recebido reclamações ‘jocosas’ de executivos da Petrobras sobre ‘gas release’,neutro,claude
+151,rss_valor,Ministro do Comércio de Cuba nega conversas com pessoas ligadas a Trump,neutro,claude
+152,rss_infomoney,Ex-apresentador de TV vira rei em Uganda após disputa pela sucessão,neutro,claude
+153,rss_exame,'Agrado' de Infantino? FIFA abre porta para distribuir mais de R$ 30 bilhões a federações,neutro,claude
+156,rss_infomoney,"Clima, e não o preço, será fator determinante para produção de açúcar brasileiro",neutro,claude
+157,rss_infomoney,"E se os EUA barrarem exportações de diesel, quais impactos para a Bolsa brasileira?",neutro,claude
+158,rss_infomoney,"Motiva, EcoRodovias e Eletromidia criam empresa de mídia para publicidade em rodovias",positivo,claude
+159,rss_moneytimes,Petrobras (PETR4): A variável que os investidores devem ficar de olho nestas eleições,neutro,claude
+164,rss_exame,BC nega 1º pedido de licença a empresa de criptoativos,negativo,claude
+167,rss_exame,'Aquele sobre Matthew Perry': Netflix divulga trailer de série documental sobre ator de Friends,neutro,claude
+168,rss_exame,Agentes e novo ChatGPT: confira os lançamentos da OpenAI na DevDay,positivo,claude
+169,rss_exame,OpenAI lança GPT-6.1 Sol: modelo chega ao Codex mais barato e 8x mais rápido,positivo,claude
+171,rss_exame,A nova fronteira das canetinhas emagrecedoras: o que a ciência já sabe sobre longevidade,neutro,claude
+172,rss_exame,Por que o Grande Prêmio do Bahrein de Fórmula 1 será disputado na Malásia em 2026?,neutro,claude
+173,rss_exame,Lenda do tênis pede boicote aos Grand Slams por causa de premiação,neutro,claude
+179,rss_valor,ARX CYBER detalha teste de maturidade em cibersegurança,neutro,claude
+180,rss_valor,Nova pesquisa Datafolha no CE mostra tamanho da distância entre Ciro e Elmano antes do 1º turno,neutro,claude
+182,rss_valor,"Danone, Ultrapar e XP abrem inscrições para programas de estágio",neutro,claude
+183,rss_valor,Calor recorde na Europa faz Lindt reduzir previsão para vendas de chocolate,negativo,claude
+187,rss_valor,Anthropic afirma que agentes de IA fora de controle representam risco jurídico incerto para a empresa,negativo,claude
+188,rss_valor,"Confiança do comércio tem em setembro pior queda em sete meses, diz FGV",negativo,claude
+189,rss_valor,Serena Assist lança plano Unique para até 12 pessoas,positivo,claude
+192,rss_valor,Comitê Gestor estende prazos para opção pelo Simples,neutro,claude

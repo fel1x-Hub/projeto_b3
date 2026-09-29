@@ -49,6 +49,8 @@ def main(argv: list[str] | None = None) -> int:
                 if args.familia not in ("todas", nome):
                     continue
                 inicio = time.monotonic()
+                if nome == "sentimento":
+                    sentimento.classificar_pendentes(conn)  # notícias novas ainda sem score
                 n = base.gravar(conn, modulo.calcular(conn), modulo.VERSOES)
                 logger.info("%s: %d valores em %.0fs", nome, n, time.monotonic() - inicio)
         print(cobertura.relatorio(conn))
