@@ -179,7 +179,11 @@ As demonstrações financeiras da CVM (DFP anual e ITR trimestral), em formato l
 | disponivel_em | timestamp | Data de entrega (`DT_RECEB`) às 23:59:59 BRT. |
 | coletado_em | timestamp | |
 
-Só guardo o exercício "ÚLTIMO" de cada documento, porque o "PENÚLTIMO" é apenas a coluna comparativa. Todas as versões são guardadas.
+Só guardo o exercício "ÚLTIMO" de cada documento, porque o "PENÚLTIMO" é apenas a coluna comparativa.
+
+**Versões:** os arquivos abertos da CVM só trazem os valores da **última versão** de cada documento. As anteriores aparecem só no índice.
+- **No histórico:** cada documento fica disponível a partir da entrega da última versão. É conservador: nunca adianta o dado, mas pode atrasá-lo algumas semanas quando houve reapresentação.
+- **Daqui para a frente:** a coleta frequente guarda a v1 quando ela sai, e a v2 entra depois sem apagar a v1. O ponto-no-tempo real se acumula com o tempo.
 
 **Uso ponto-no-tempo:** para uma data D, use, por documento, a maior `versao` com `disponivel_em <= D`.
 
