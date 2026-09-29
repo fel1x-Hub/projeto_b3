@@ -16,7 +16,7 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 ## Etapas
 | # | Etapa | Arquivo | Status |
 |---|-------|---------|--------|
-| 1 | Fundação e banco de dados | [etapas/etapa1.md](etapas/etapa1.md) | ⏳ pendente |
+| 1 | Fundação e banco de dados | [etapas/etapa1.md](etapas/etapa1.md) | ✅ concluída |
 | 2 | Coleta de dados | [etapas/etapa2.md](etapas/etapa2.md) | ⏳ pendente |
 | 3 | Extração de sinais | [etapas/etapa3.md](etapas/etapa3.md) | ⏳ pendente |
 | 4 | Modelo de ranking | [etapas/etapa4.md](etapas/etapa4.md) | ⏳ pendente |
@@ -28,9 +28,11 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
 
 ## Configuração do usuário
-- Ativos iniciais: [ex: PETR4, VALE3, ITUB4, BBAS3, WEGE3]
+- Ativos: lista editável em `config/ativos.csv` (20 iniciais: os 5 do exemplo + maiores da B3). Para adicionar, incluir linha e rodar `python scripts/init_db.py`.
 - Hardware: [ex: notebook sem GPU / RTX 3060 12GB]
-- Experiência: [iniciante / intermediário / avançado]
+- Experiência: intermediário
+- Python: 3.13, ambiente virtual em `.venv`
+- Repositório: https://github.com/fel1x-Hub/projeto_b3 (branch `main`, commits regulares por passo)
 
 ## Stack
 - Python 3.11+
@@ -85,8 +87,10 @@ Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
 
 ## Comandos
 (preencher conforme o projeto evolui)
+- Ambiente: `python -m venv .venv` e depois `.venv\Scripts\activate`
 - Instalar backend: `pip install -r requirements.txt`
 - Instalar frontend: `cd frontend && npm install`
+- Criar/atualizar banco (idempotente): `python scripts/init_db.py` — schema documentado em `docs/schema.md`
 - Testes: `pytest`
 - Dev local (backend): `uvicorn src.api.main:app --reload`
 - Dev local (frontend): `cd frontend && npm run dev`
