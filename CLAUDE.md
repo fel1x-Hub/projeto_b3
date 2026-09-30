@@ -67,7 +67,10 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Reavaliar com eventos (`avaliar_ranking.py`) quando a classificação de títulos terminar.
 
 **Etapa 5 — backtest e paper trading**
-- 🙋 Regra da carteira (N ações, pesos, frequência de rebalanceamento), fixada **antes** de ver os resultados.
+- ✅ Regra da carteira, decidida pelo usuário em 30/09/2026 antes dos resultados:
+  - **top 30 do ranking, pesos iguais, rebalanceamento quinzenal (a cada 10 pregões), universo todo (≥ R$ 100 mil/dia), só comprada**;
+  - vende o que sai do top 30 no rebalanceamento, que é a mesma lógica de "comprar o top 30 e vender o que caiu" do app (regra 16).
+- 🟢 Sensibilidade (sem trocar a regra principal): N = 20 e 40; rebalanceamento semanal e mensal; custos em dobro; só líquidas (≥ R$ 1 mi/dia); com e sem eventos; regra com folga, que só vende quando a ação sai do top 60.
 - 🟢 Custos: emolumentos da B3 (~0,03%) + spread/slippage por faixa de liquidez, parametrizados em config.
 - Backtest com e sem o sinal de eventos (risco de look-ahead do LLM) e separado por faixa de liquidez (as pouco negociadas enganam).
 - O paper trading precisa de semanas de calendário antes de qualquer conclusão.
@@ -80,7 +83,13 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 **Etapa 7 — interface (regra 15: sempre atualizada)**
 - API FastAPI com `atualizado_em` em cada resposta.
 - React com telas que se atualizam sozinhas: mercado, ranking, detalhe da ação ao vivo, relatório, carteira e chat. Selo de provisório no que é intradiário.
-- 🙋 Extrato de exemplo da XP (pode ser anonimizado). Antes, verificar se a XP tem API oficial.
+- Carteira real (regra 16): integração pelo **Meu Pluggy** (Open Finance, grátis para uso pessoal).
+  - 🙋 O usuário cria a conta em meu.pluggy.ai, conecta a XP e gera as credenciais em dashboard.pluggy.ai, que vão para o `.env`.
+  - Alternativa: importar o extrato da XP.
+- Telas de indicação:
+  - "o que comprar": top 30 que não está na carteira;
+  - "o que vender": ações da carteira que caíram no ranking;
+  - "por quê": contribuição de cada sinal (pred_contrib do LightGBM) e texto do LLM baseado só nesses números.
 - 🟢 Chat de IA com Gemini, com contexto montado pelo backend.
 - Instalar Node.js na máquina.
 
@@ -145,6 +154,15 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
     - Durante o pregão há atualização intradiária, com a frequência que a fonte gratuita permitir (cotação gratuita costuma ter ~15 min de atraso). Os valores intradiários aparecem marcados como **provisórios**. Depois do fechamento, os dados oficiais da B3 os substituem.
     - A interface se atualiza sozinha (polling ou SSE), mostrando "atualizado às HH:MM" e se o mercado está aberto ou fechado.
     - Se uma fonte falhar, a tela mostra o último dado válido com a hora dele. Nunca mostra um dado velho como se fosse atual.
+16. **Copiloto da carteira real na XP** (visão do usuário, 30/09/2026). O app:
+    - lê automaticamente a carteira do usuário na XP e mostra os ganhos atualizados (posições sincronizadas × cotação do momento);
+    - usa o **top 30 do ranking** para indicar **o que comprar**;
+    - aponta, entre as ações da carteira, **o que considerar vender**, ou seja, as que caíram no ranking;
+    - mostra, sob demanda, **o que motivou cada indicação**: os sinais que mais pesaram, com seus valores, e um resumo em texto gerado pelo LLM a partir desses números.
+
+    Continua sendo apoio à decisão: nunca envia ordens, o usuário decide e executa na XP, e todo texto traz o aviso de que não é recomendação de investimento.
+
+    **Integração com a XP.** A XP só expõe dados a participantes do Open Finance e a parceiros. O caminho pessoal e gratuito é o **Meu Pluggy** (agregador autorizado pelo Banco Central): o usuário autoriza no app da XP, nenhuma senha é armazenada, e as credenciais da API ficam no `.env` (regra 11). Confirmar na etapa 7 se a XP aparece com investimentos; se não aparecer, a alternativa é importar o extrato.
 
 ## Comandos
 (preencher conforme o projeto evolui)
