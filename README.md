@@ -13,7 +13,11 @@ pip install -r requirements.txt
 copy .env.example .env            # ajuste se quiser
 python scripts/init_db.py         # cria data/b3.db
 python scripts/coletar.py         # baixa 5 anos de dados (depois, só o que faltar)
+python scripts/extrair_eventos.py # eventos de fatos relevantes com Gemini (precisa de GEMINI_API_KEY no .env)
+python scripts/gerar_sinais.py    # calcula os sinais e mostra a cobertura
 pytest
 ```
 
-Ativos acompanhados: [config/ativos.csv](config/ativos.csv). Feeds de notícias: [config/feeds.csv](config/feeds.csv). Schema do banco: [docs/schema.md](docs/schema.md).
+Rotina diária sugerida: `coletar.py`, depois `extrair_eventos.py`, depois `gerar_sinais.py`.
+
+Ativos acompanhados: [config/ativos.csv](config/ativos.csv). Feeds de notícias: [config/feeds.csv](config/feeds.csv). Schema do banco: [docs/schema.md](docs/schema.md). Catálogo de sinais: [docs/sinais.md](docs/sinais.md).
