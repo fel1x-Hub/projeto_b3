@@ -76,7 +76,7 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Candidata para depois de observar: regra com folga (top 60), com metade do giro. Não trocar agora.
 
 **Etapa 6 — relatório diário e agendamento contínuo (regra 15)**
-- 🙋 Fonte de cotação intradiária: grátis com ~15 min de atraso ou paga. Trazer opções, custos e termos.
+- ✅ Fonte de cotação intradiária (decisão do usuário, 30/09/2026): **yfinance grátis, ~16 min de atraso** (medido: uma consulta cobre todas as ações e o ^BVSP em ~3 s). Isolada num módulo, para trocar por paga depois (brapi Pro: ~5 min por R$ 117/mês).
 - 🟢 LLM do relatório: Gemini grátis. Checagem automática de que todo número do texto confere com os dados.
 - Agendador contínuo: ciclo de ~15 min no pregão (cotação, notícias, sinais e score provisórios) e pipeline completo depois do arquivo da B3 (~21h).
 

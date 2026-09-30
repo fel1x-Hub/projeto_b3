@@ -42,8 +42,9 @@ def main(argv: list[str] | None = None) -> int:
         ja_tem = conn.execute("SELECT 1 FROM ranking WHERE versao_modelo = ? AND data = ? LIMIT 1",
                               (gerar.VERSAO_MODELO, ultimo)).fetchone()
         if not ja_tem:
-            ranking, _ = gerar.ranking_da_data(conn, date.fromisoformat(ultimo))
-            gerar.gravar(conn, ranking, gerar.VERSAO_MODELO)
+            resultado = gerar.ranking_da_data(conn, date.fromisoformat(ultimo))
+            gerar.gravar(conn, resultado.ranking, gerar.VERSAO_MODELO)
+            gerar.gravar_fatores(conn, resultado.fatores, gerar.VERSAO_MODELO)
         data_inicio = paper.inicio(conn, se_vazio=ultimo)
         r = paper.atualizar(conn, matriz_retornos(conn), dados.carregar_universo(conn), data_inicio)
         carteira = conn.execute(

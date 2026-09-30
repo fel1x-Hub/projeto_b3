@@ -348,3 +348,32 @@ CREATE TABLE paper_patrimonio (
     PRIMARY KEY (data)
 );
 """
+
+
+SCHEMA_V8 = f"""
+-- Por que cada ação ficou onde ficou no ranking (etapa 6, regra 16): os sinais
+-- que mais pesaram para ela, com o percentil do sinal no dia e a contribuição
+-- ao score (valores SHAP do LightGBM). Base das explicações no app e no relatório.
+CREATE TABLE ranking_fatores (
+    {_data("data")},
+    ticker          TEXT NOT NULL REFERENCES ativos (ticker),
+    versao_modelo   TEXT NOT NULL,
+    sinal           TEXT NOT NULL,
+    percentil       REAL,                    -- posição do sinal da ação no universo do dia (0 a 1)
+    contribuicao    REAL NOT NULL,           -- efeito no score (positivo = ajudou a subir)
+    PRIMARY KEY (data, ticker, versao_modelo, sinal)
+);
+
+-- Cotação do momento (ciclo intradiário, regra 15). Uma linha por papel,
+-- substituída a cada ciclo. É PROVISÓRIA: o dado oficial é o arquivo da B3
+-- da noite, que vai para `cotacoes`. Não tem FK porque inclui índices (ex.: IBOV).
+CREATE TABLE cotacao_atual (
+    ticker            TEXT PRIMARY KEY,
+    preco             REAL NOT NULL CHECK (preco > 0),
+    fechamento_anterior REAL,
+    variacao_dia      REAL,
+    {_ts("horario_cotacao")},                 -- horário da última negociação na fonte
+    fonte             TEXT NOT NULL,
+    {_ts("coletado_em")}
+);
+"""

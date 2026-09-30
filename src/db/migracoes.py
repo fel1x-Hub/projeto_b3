@@ -11,7 +11,7 @@ edite uma migração já aplicada.
 import logging
 import sqlite3
 
-from src.db.schema import SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7
+from src.db.schema import SCHEMA_V1, SCHEMA_V2, SCHEMA_V3, SCHEMA_V4, SCHEMA_V5, SCHEMA_V6, SCHEMA_V7, SCHEMA_V8
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ MIGRACOES: list[tuple[int, str]] = [
     (5, SCHEMA_V5),  # universo ampliado: ativos.origem e tabela universo
     (6, SCHEMA_V6),  # etapa 4: tabela ranking
     (7, SCHEMA_V7),  # etapa 5: paper trading
+    (8, SCHEMA_V8),  # etapa 6: explicação do ranking e cotação do momento
 ]
 
 _CRIAR_CONTROLE = """

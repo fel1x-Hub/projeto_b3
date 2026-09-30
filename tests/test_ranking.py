@@ -86,18 +86,18 @@ def test_walk_forward_so_treina_com_alvos_realizados(conn_mercado, monkeypatch):
 def test_ranking_da_data_nao_muda_com_dados_futuros(conn_mercado):
     conn, dias = conn_mercado
     dia = dias[250]
-    antes, _ = gerar.ranking_da_data(conn, dia, ["x"])
+    antes = gerar.ranking_da_data(conn, dia, ["x"]).ranking
     with conn:  # envenena o futuro: preços absurdos e sinais invertidos depois do dia
         conn.execute("UPDATE cotacoes SET fechamento = fechamento * 50 WHERE data > ?", (dia.isoformat(),))
         conn.execute("UPDATE sinais SET valor = -valor WHERE data > ?", (dia.isoformat(),))
-    depois, _ = gerar.ranking_da_data(conn, dia, ["x"])
+    depois = gerar.ranking_da_data(conn, dia, ["x"]).ranking
     pd.testing.assert_frame_equal(antes, depois)
     assert list(antes["posicao"]) == list(range(1, N_ACOES + 1))
 
 
 def test_gravar_ranking_e_idempotente(conn_mercado):
     conn, dias = conn_mercado
-    ranking, _ = gerar.ranking_da_data(conn, dias[250], ["x"])
+    ranking = gerar.ranking_da_data(conn, dias[250], ["x"]).ranking
     n = gerar.gravar(conn, ranking, "teste")
     assert gerar.gravar(conn, ranking, "teste") == n == N_ACOES
     linha = conn.execute("SELECT posicao, disponivel_em FROM ranking WHERE posicao = 1").fetchone()
@@ -114,3 +114,15 @@ def test_modelo_salvo_para_auditoria(conn_mercado, tmp_path):
     conn, dias = conn_mercado
     gerar.ranking_da_data(conn, dias[250], ["x"], salvar_em=tmp_path)
     assert (tmp_path / f"{gerar.VERSAO_MODELO}_{dias[250].isoformat()}.txt").exists()
+
+
+def test_fatores_explicam_cada_acao(conn_mercado):
+    conn, dias = conn_mercado
+    r = gerar.ranking_da_data(conn, dias[250], ["x"])
+    assert set(r.fatores["ticker"]) == set(r.ranking["ticker"])
+    assert set(r.fatores["sinal"]) == {"x"} and r.fatores["percentil"].between(0, 1).all()
+    # a ação do topo tem contribuição positiva do sinal; a do fundo, negativa
+    topo, fundo = r.ranking["ticker"].iloc[0], r.ranking["ticker"].iloc[-1]
+    contrib = r.fatores.set_index("ticker")["contribuicao"]
+    assert contrib[topo] > 0 > contrib[fundo]
+    assert gerar.gravar_fatores(conn, r.fatores, "teste") == len(r.fatores)

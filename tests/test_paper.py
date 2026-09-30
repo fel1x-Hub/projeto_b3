@@ -14,8 +14,7 @@ def test_paper_trading_registra_carteira_e_patrimonio(conn_mercado):
     from src.ranking import dados
     # três rankings diários "ao vivo"
     for d in dias[300:303]:
-        ranking, _ = gerar.ranking_da_data(conn, d, ["x"])
-        gerar.gravar(conn, ranking, gerar.VERSAO_MODELO)
+        gerar.gravar(conn, gerar.ranking_da_data(conn, d, ["x"]).ranking, gerar.VERSAO_MODELO)
     inicio = paper.inicio(conn, se_vazio=dias[300].isoformat())
     assert paper.inicio(conn, se_vazio="2099-01-01") == inicio          # início fica fixo
     regra = paper.Regra(n_acoes=5, intervalo=10)

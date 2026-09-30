@@ -8,6 +8,7 @@ ranking, não importa quantos dados futuros existam no banco.
 
 import logging
 import sqlite3
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
@@ -21,6 +22,34 @@ logger = logging.getLogger(__name__)
 
 VERSAO_MODELO = f"lgbm-v{modelo.VERSAO}"
 VERSAO_WALK_FORWARD = f"wf-lgbm-v{modelo.VERSAO}"
+
+
+N_FATORES = 5  # sinais que mais pesaram, por ação
+
+
+def fatores(m, hoje: pd.DataFrame, colunas: list[str], n: int = N_FATORES) -> pd.DataFrame:
+    """Para cada ação do dia, os `n` sinais de maior contribuição absoluta ao
+    score (SHAP do LightGBM), com o percentil do sinal. Colunas: data, ticker,
+    sinal, percentil, contribuicao."""
+    contrib = pd.DataFrame(m.predict(hoje[colunas], pred_contrib=True)[:, :-1], columns=colunas, index=hoje.index)
+    longo = contrib.stack().rename("contribuicao").reset_index()
+    longo.columns = ["data", "ticker", "sinal", "contribuicao"]
+    longo["percentil"] = hoje[colunas].stack().reindex(pd.MultiIndex.from_frame(longo[["data", "ticker", "sinal"]])).to_numpy()
+    longo["_abs"] = longo["contribuicao"].abs()
+    topo = longo.sort_values("_abs", ascending=False).groupby(["data", "ticker"]).head(n)
+    return topo.drop(columns="_abs").sort_values(["ticker", "contribuicao"]).reset_index(drop=True)
+
+
+def gravar_fatores(conn: sqlite3.Connection, fat: pd.DataFrame, versao: str) -> int:
+    datas = sorted({d.date().isoformat() for d in fat["data"]})
+    with conn:
+        conn.executemany("DELETE FROM ranking_fatores WHERE versao_modelo = ? AND data = ?", [(versao, d) for d in datas])
+        conn.executemany(
+            "INSERT INTO ranking_fatores (data, ticker, versao_modelo, sinal, percentil, contribuicao) VALUES (?, ?, ?, ?, ?, ?)",
+            [(r.data.date().isoformat(), r.ticker, versao, r.sinal,
+              None if pd.isna(r.percentil) else float(r.percentil), float(r.contribuicao))
+             for r in fat.itertuples(index=False)])
+    return len(fat)
 
 
 def com_posicao(scores: pd.DataFrame) -> pd.DataFrame:
@@ -46,9 +75,17 @@ def gravar(conn: sqlite3.Connection, scores: pd.DataFrame, versao: str) -> int:
     return len(ranking)
 
 
+@dataclass
+class RankingDoDia:
+    ranking: pd.DataFrame        # data, ticker, score, posicao
+    importancia: pd.Series       # contribuição média absoluta por sinal
+    fatores: pd.DataFrame        # por ação: sinais que mais pesaram (ver `fatores`)
+    modelo: object = None
+
+
 def ranking_da_data(conn: sqlite3.Connection, dia: date, colunas: list[str] | None = None,
-                    salvar_em: Path | None = None) -> tuple[pd.DataFrame, pd.Series]:
-    """(ranking do dia com colunas ticker/score/posicao, importância das features).
+                    salvar_em: Path | None = None) -> RankingDoDia:
+    """Ranking do dia, importância geral dos sinais e fatores por ação.
     Com `salvar_em`, grava o modelo treinado (texto do LightGBM) nessa pasta como
     <VERSAO_MODELO>_<data>.txt, para auditoria e reprodução."""
     colunas = colunas or dados.FEATURES_BASE
@@ -69,4 +106,4 @@ def ranking_da_data(conn: sqlite3.Connection, dia: date, colunas: list[str] | No
     if hoje is None or hoje.empty:
         raise ValueError(f"sem universo/sinais para {dia} (não foi pregão ou dados ainda não disponíveis)")
     scores = hoje.reset_index()[["data", "ticker"]].assign(score=m.predict(hoje[colunas]))
-    return com_posicao(scores), modelo.importancia(m, hoje[colunas])
+    return RankingDoDia(com_posicao(scores), modelo.importancia(m, hoje[colunas]), fatores(m, hoje, colunas), m)
