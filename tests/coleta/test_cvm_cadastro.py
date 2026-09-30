@@ -90,3 +90,25 @@ def test_usa_cnpj_do_csv_quando_fca_nao_resolve(conn_ativos):
                ("30.306.294/0001-45", "000000", f"{ANO}-01-01", ""))
     cvm_cadastro.coletar(conn_ativos, date(2021, 1, 1), http=_http(fca))
     assert _cadastro(conn_ativos)["BPAC11"] == ("30.306.294/0001-45", "22616")
+
+
+def test_cnpj_manual_resolve_fca_com_lixo(conn_ativos, tmp_path, monkeypatch):
+    # CSN real: FCA traz '4030' no lugar do ticker
+    arq = tmp_path / "cnpj.csv"
+    arq.write_text("ticker,cnpj,referencia\nBPAC11,30.306.294/0001-45,teste\n", encoding="utf-8")
+    monkeypatch.setattr(cvm_cadastro, "CNPJ_MANUAL", arq)
+    fca = _fca(("33.000.167/0001-01", "PETR4", f"{ANO}-01-01", ""),
+               ("30.306.294/0001-45", "4030", f"{ANO}-01-01", ""))
+    cvm_cadastro.coletar(conn_ativos, date(2021, 1, 1), http=_http(fca))
+    assert _cadastro(conn_ativos)["BPAC11"] == ("30.306.294/0001-45", "22616")
+
+
+def test_cnpj_manual_exige_referencia(tmp_path):
+    arq = tmp_path / "cnpj.csv"
+    arq.write_text("ticker,cnpj,referencia\nCSNA3,33.042.730/0001-04,\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="sem referência"):
+        cvm_cadastro.carregar_cnpj_manual(arq)
+
+
+def test_cnpj_manual_do_projeto_e_valido():
+    assert cvm_cadastro.carregar_cnpj_manual()["CSNA3"] == "33.042.730/0001-04"

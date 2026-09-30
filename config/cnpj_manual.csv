@@ -1,0 +1,11 @@
+ticker,cnpj,referencia
+CSNA3,33.042.730/0001-04,"FCA da CSN traz código de negociação '4030' (inválido); CNPJ do FCA e do cad_cia_aberta"
+CMIN3,08.902.291/0001-15,"FCA da CSN Mineração traz '25585' (inválido); CNPJ do FCA e do cad_cia_aberta"
+MRFG3,03.853.896/0001-40,"FCA da Marfrig traz 'ADR' (inválido); CNPJ do cad_cia_aberta (MARFRIG GLOBAL FOODS SA)"
+MBRF3,03.853.896/0001-40,"Novo código da Marfrig: MRFG3 negocia até 22/09/2025 e MBRF3 a partir de 23/09/2025, mesmo nome resumido na B3"
+BRDT3,34.274.233/0001-02,"BR Distribuidora virou Vibra: BRDT3 até 21/10/2021, VBBR3 desde 22/10/2021; CNPJ do VBBR3 no cad_cia_aberta"
+AMAR3,61.189.288/0001-89,"cad_cia_aberta: MARISA LOJAS SA (registro ativo)"
+BRPR3,06.977.751/0001-49,"cad_cia_aberta: BR PROPERTIES S.A."
+GETT3,10.440.482/0001-54,"cad_cia_aberta: GETNET ADQUIRÊNCIA E SERVIÇOS"
+GETT4,10.440.482/0001-54,"cad_cia_aberta: GETNET ADQUIRÊNCIA E SERVIÇOS"
+GETT11,10.440.482/0001-54,"cad_cia_aberta: GETNET ADQUIRÊNCIA E SERVIÇOS"

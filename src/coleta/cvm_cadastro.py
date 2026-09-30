@@ -4,8 +4,9 @@
   (anos antigos listam tickers de empresas que mudaram de código ou saíram da
   bolsa, necessários para o histórico sem viés de sobrevivência).
 - Units nem sempre aparecem como código de negociação; nesse caso busca pelo
-  radical (4 letras) se ele levar a um único CNPJ e, por último, usa o CNPJ
-  informado manualmente na coluna `cnpj` de config/ativos.csv.
+  radical (4 letras) se ele levar a um único CNPJ; depois config/cnpj_manual.csv
+  (empresas que preenchem o FCA com lixo, ex.: CSN com '4030', ou que trocaram
+  de ticker, ex.: MRFG3 -> MBRF3); por último, a coluna `cnpj` do ativos.csv.
 - cad_cia_aberta.csv: CNPJ -> código CVM (preferindo o registro ATIVO).
 Benchmarks (ETFs) não são empresas e ficam de fora.
 """
@@ -14,6 +15,7 @@ import logging
 import sqlite3
 from datetime import date
 
+from config import settings
 from src.coleta import cvm_comum
 from src.coleta.cliente_http import ClienteHTTP
 from src.coleta.execucao import ColetaParcial
@@ -22,6 +24,22 @@ from src.db.tempo import agora_utc_iso, hoje_brt
 logger = logging.getLogger(__name__)
 
 FONTE = "cvm_cadastro"
+CNPJ_MANUAL = settings.BASE_DIR / "config" / "cnpj_manual.csv"
+
+
+def carregar_cnpj_manual(caminho=None) -> dict[str, str]:
+    """{ticker: cnpj} para empresas que preenchem o FCA errado ou trocaram de
+    ticker. Cada linha precisa de `referencia` (fonte da informação)."""
+    import csv
+    caminho = caminho or CNPJ_MANUAL
+    if not caminho.exists():
+        return {}
+    with open(caminho, encoding="utf-8-sig", newline="") as f:
+        linhas = list(csv.DictReader(f))
+    sem_fonte = [r["ticker"] for r in linhas if not (r.get("referencia") or "").strip()]
+    if sem_fonte:
+        raise ValueError(f"cnpj_manual.csv: linhas sem referência: {', '.join(sem_fonte)}")
+    return {r["ticker"].strip().upper(): r["cnpj"].strip() for r in linhas}
 
 
 def _mapa_ticker_cnpj(linhas_fca: list[dict]) -> tuple[dict[str, str], dict[str, set[str]]]:
@@ -70,6 +88,7 @@ def coletar(conn: sqlite3.Connection, desde: date, http: ClienteHTTP | None = No
     cad = cvm_comum.baixar(http, "CAD/DADOS/cad_cia_aberta.csv")
     cnpj_para_codigo = _mapa_cnpj_codigo(cvm_comum.ler_csv(cad))
 
+    manual = carregar_cnpj_manual()
     atualizados, nao_encontrados = 0, []
     acoes = conn.execute("SELECT ticker, cnpj, codigo_cvm FROM ativos WHERE ativo = 1 AND tipo = 'acao'").fetchall()
     with conn:
@@ -79,6 +98,9 @@ def coletar(conn: sqlite3.Connection, desde: date, http: ClienteHTTP | None = No
             if cnpj is None and len(por_radical.get(ticker[:4], ())) == 1:
                 cnpj = next(iter(por_radical[ticker[:4]]))
                 logger.info("%s não consta no FCA; identificado pelo radical %s", ticker, ticker[:4])
+            if cnpj is None and ticker in manual:
+                cnpj = manual[ticker]
+                logger.info("%s resolvido por config/cnpj_manual.csv", ticker)
             if cnpj is None and a["cnpj"]:
                 # a própria empresa pode preencher o FCA errado (ex: BTG informa a
                 # unit como '000000'); vale o CNPJ informado em config/ativos.csv

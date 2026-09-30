@@ -1,7 +1,8 @@
 """Relatório de cobertura dos sinais: quais sinais existem para cada ativo e
 período, e o percentual de valores faltantes.
 
-Faltante = pregão do ativo (em `cotacoes`) sem valor gravado para o sinal.
+Faltante = pregão em que o ativo estava no universo (tabela `universo`) sem
+valor gravado para o sinal. Sem universo calculado, a base são todos os pregões.
 """
 
 import sqlite3
@@ -22,9 +23,12 @@ def _tabela(df: pd.DataFrame, indice: str, colunas: str) -> str:
 
 
 def relatorio(conn: sqlite3.Connection) -> str:
-    pregoes = pd.read_sql_query(
-        "SELECT c.ticker, c.data FROM cotacoes c JOIN ativos a ON a.ticker = c.ticker "
-        "WHERE a.ativo = 1 AND a.tipo = 'acao' AND c.fonte = 'b3_cotahist'", conn)
+    # base = universo de cada dia (o que o ranking usa); sem universo, todos os pregões de ações
+    pregoes = pd.read_sql_query("SELECT ticker, data FROM universo", conn)
+    if pregoes.empty:
+        pregoes = pd.read_sql_query(
+            "SELECT c.ticker, c.data FROM cotacoes c JOIN ativos a ON a.ticker = c.ticker "
+            "WHERE a.ativo = 1 AND a.tipo = 'acao' AND c.fonte = 'b3_cotahist'", conn)
     sinais = pd.read_sql_query("SELECT ticker, data, nome FROM sinais", conn)
     if sinais.empty:
         return "Nenhum sinal gravado."

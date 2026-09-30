@@ -13,13 +13,24 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 5. Ao terminar, confira o "Critério de pronto" da etapa, mostre os resultados e atualize a tabela de status.
 6. Não comece a próxima etapa sem aprovação.
 
+**Autorização do usuário (30/09/2026): modo contínuo.** O Claude pode emendar uma etapa na outra sem esperar aprovação do plano. Regras desse modo:
+- Ao **começar** cada etapa, avisar o usuário em uma mensagem curta: qual etapa começou, o plano resumido e as decisões tomadas por padrão.
+- Continuar parando para o que é **decisão do usuário**:
+  - a regra da carteira do backtest, antes de ver resultados (etapa 5);
+  - a fonte de cotação intradiária, grátis ou paga (etapa 6);
+  - o extrato de exemplo da XP (etapa 7);
+  - a escolha de hospedagem e a criação de contas (etapa 8, regra 13);
+  - qualquer gasto de dinheiro.
+- Continua valendo: confirmar o critério de pronto, atualizar o status, commit e push a cada passo e testes verdes.
+- O roteiro detalhado do que falta está em "Próximos passos", abaixo.
+
 ## Etapas
 | # | Etapa | Arquivo | Status |
 |---|-------|---------|--------|
 | 1 | Fundação e banco de dados | [etapas/etapa1.md](etapas/etapa1.md) | ✅ concluída |
 | 2 | Coleta de dados | [etapas/etapa2.md](etapas/etapa2.md) | ✅ concluída |
-| 3 | Extração de sinais | [etapas/etapa3.md](etapas/etapa3.md) | 🔨 em andamento |
-| 4 | Modelo de ranking | [etapas/etapa4.md](etapas/etapa4.md) | ⏳ pendente |
+| 3 | Extração de sinais | [etapas/etapa3.md](etapas/etapa3.md) | ✅ concluída |
+| 4 | Modelo de ranking | [etapas/etapa4.md](etapas/etapa4.md) | 🔨 em andamento |
 | 5 | Backtest e paper trading | [etapas/etapa5.md](etapas/etapa5.md) | ⏳ pendente |
 | 6 | Relatório diário | [etapas/etapa6.md](etapas/etapa6.md) | ⏳ pendente |
 | 7 | Interface (dashboard + chat IA + carteira) | [etapas/etapa7.md](etapas/etapa7.md) | ⏳ pendente |
@@ -31,13 +42,57 @@ Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
 - Universo (decisão do usuário, 30/09/2026): **a maior parte da B3**, e não uma lista fixa.
   - Entram **ações e units** (ON, PN e units em lote padrão). Ficam de fora FIIs, ETFs e BDRs; o BOVA11 fica só como benchmark.
   - Filtro de liquidez **ponto-no-tempo**: volume financeiro médio ≥ **R$ 100 mil/dia** nos últimos 3 meses, avaliado em cada data. Empresas que saíram da bolsa continuam no histórico, para evitar viés de sobrevivência.
-  - `config/ativos.csv` passa a ser só a lista de exceções (incluir ou excluir à mão).
-  - Em transição: a coleta atual ainda cobre só os 20 papéis iniciais.
+  - `config/ativos.csv` passa a ser só a lista de exceções (incluir ou excluir à mão). Também guarda apelidos de busca em notícias e CNPJs que a CVM não resolve.
+  - Implementado: ~530 papéis detectados em 5 anos de arquivos da B3; ~250 passam no filtro hoje, ~290 em 2024 e ~320 em 2022.
 - Feeds de notícias em `config/feeds.csv`.
 - Hardware: 16 GB RAM, GPU Intel UHD integrada (sem CUDA), ~200 GB livres. Sem GPU: sentimento com modelo pronto em CPU ou LLM via API; fine-tuning local inviável.
 - Experiência: intermediário
 - Python: 3.13, ambiente virtual em `.venv`
 - Repositório: https://github.com/fel1x-Hub/projeto_b3 (branch `main`, commits regulares por passo)
+
+## Próximos passos (roteiro vivo, atualizar a cada etapa)
+Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋 decisão do usuário (parar e perguntar)
+
+**Rotinas em andamento (não bloqueiam as próximas etapas)**
+- Eventos: `python scripts/extrair_eventos.py`.
+  - Títulos de todos os fatos relevantes, em lote.
+  - Depois, o texto completo, por liquidez. Avança alguns dias pela cota grátis do Gemini e melhora a cobertura de `evt_*` a cada rodada.
+- Sentimento: acumula a partir de 29/09/2026 com a coleta diária. Ainda não tem histórico para o backtest.
+- CVM: 24 tickers pequenos ou extintos seguem sem CNPJ (ver alerta do `coletar.py`). Para resolver, acrescente-os em `config/cnpj_manual.csv`, com a fonte.
+- Tamanho do banco: medir o que ocupa espaço antes da etapa 8. Depois da ampliação ficou em ~640 MB, acima do limite gratuito comum de 512 MB.
+
+**Etapa 4 — ranking**
+- 🟢 Alvo: retorno total dos próximos 21 pregões menos a mediana do universo no mesmo dia (ranking cross-section). Os 5 pregões entram como análise de sensibilidade.
+- 🟢 Features: todos os sinais, ranqueados em percentil dentro do universo de cada dia. Isso tira a escala e reduz outliers; faltante vira NaN, que o LightGBM trata.
+- 🟢 Baselines: aleatório, momentum (`ret_63d`), valor (`fund_lp`) e sentimento (quando houver histórico).
+- 🟢 Validação walk-forward anual, com gap de 21 pregões. Métricas: IC de Spearman por dia (média, desvio, % de dias positivos) e retorno do top decil menos o bottom decil.
+- 🟢 LightGBM com hiperparâmetros modestos e sem busca exaustiva. Registrar o número de variações testadas. SHAP para interpretar.
+- Tabela `ranking` (ticker, data, score, posição, versão do modelo) e `scripts/gerar_ranking.py`.
+- Resultado ruim contra os baselines é resultado válido e deve ser relatado com honestidade.
+
+**Etapa 5 — backtest e paper trading**
+- 🙋 Regra da carteira (N ações, pesos, frequência de rebalanceamento), fixada **antes** de ver os resultados.
+- 🟢 Custos: emolumentos da B3 (~0,03%) + spread/slippage por faixa de liquidez, parametrizados em config.
+- Backtest com e sem o sinal de eventos (risco de look-ahead do LLM) e separado por faixa de liquidez (as pouco negociadas enganam).
+- O paper trading precisa de semanas de calendário antes de qualquer conclusão.
+
+**Etapa 6 — relatório diário e agendamento contínuo (regra 15)**
+- 🙋 Fonte de cotação intradiária: grátis com ~15 min de atraso ou paga. Trazer opções, custos e termos.
+- 🟢 LLM do relatório: Gemini grátis. Checagem automática de que todo número do texto confere com os dados.
+- Agendador contínuo: ciclo de ~15 min no pregão (cotação, notícias, sinais e score provisórios) e pipeline completo depois do arquivo da B3 (~21h).
+
+**Etapa 7 — interface (regra 15: sempre atualizada)**
+- API FastAPI com `atualizado_em` em cada resposta.
+- React com telas que se atualizam sozinhas: mercado, ranking, detalhe da ação ao vivo, relatório, carteira e chat. Selo de provisório no que é intradiário.
+- 🙋 Extrato de exemplo da XP (pode ser anonimizado). Antes, verificar se a XP tem API oficial.
+- 🟢 Chat de IA com Gemini, com contexto montado pelo backend.
+- Instalar Node.js na máquina.
+
+**Etapa 8 — deploy**
+- 🙋 Hospedagem de backend, banco e frontend (apresentar opções, regra 13). O usuário cria as contas.
+- Banco hoje com ~2 milhões de linhas: medir depois do enxugamento e comparar com os limites gratuitos.
+- Sentimento na nuvem: o torch (~1 GB) pode não caber; alternativa é o Gemini.
+- Agendamentos na nuvem (ex.: GitHub Actions) e `.exe` com Electron.
 
 ## Stack
 - Python 3.11+

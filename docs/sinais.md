@@ -9,6 +9,16 @@ O teste anti look-ahead garante essa regra para cada família, em `tests/sinais/
 - calcular com o banco completo e com o banco truncado no corte de D precisa dar resultados idênticos em D;
 - inserir dados absurdos no futuro não pode alterar o passado.
 
+## Universo (`src/sinais/universo.py`, tabela `universo`)
+Diz quais papéis estão aptos ao ranking em cada pregão. É calculado ponto-no-tempo com a mesma regra de corte.
+- **Quem entra:** ações e units detectadas nos arquivos da B3 (~530 papéis em 5 anos).
+- **Filtro de liquidez:** volume financeiro médio de pelo menos R$ 100 mil por dia nos últimos 63 pregões, com dia sem negócio contando como zero. O volume financeiro é aproximado por quantidade × fechamento.
+- **Exceções:** incluir ou excluir à mão pelo `config/ativos.csv`.
+- **Tamanho:** 421 papéis distintos passaram pelo universo em algum momento dos 5 anos. Hoje são ~250.
+- **Sem viés de sobrevivência:** empresas que saíram da bolsa continuam no histórico.
+
+O relatório de cobertura mede os faltantes dentro do universo de cada dia.
+
 ## Técnicos (`src/sinais/tecnicos.py`, versão 1)
 Todos são calculados sobre o **índice de retorno total**, montado a partir do preço bruto da B3 e da tabela `proventos`.
 - Na data ex, o retorno do dia é `(P × fator + dividendo) / P_anterior − 1`.
@@ -84,6 +94,12 @@ O modelo passa do limite de 0,6 combinado, mas tem um **viés para o negativo**:
 Um viés constante afeta pouco o `sent_delta`, que compara com a média recente do próprio ativo. Se na etapa 4 o sentimento pesar no ranking, vale testar a classificação dos títulos pelo LLM (Gemini), que entende esse contexto.
 
 ## Eventos (`src/sinais/eventos.py`, versão 1, prompt versão 1)
+Os eventos cobrem todas as empresas, em duas camadas:
+1. **Títulos:** os títulos dos fatos relevantes são classificados em lotes de ~40 por requisição (`processar_titulos`).
+2. **Texto completo:** os PDFs são lidos a partir das empresas mais líquidas e têm preferência sobre o título no sinal.
+
+**Um documento vale para todos os tickers da empresa** (ex.: PETR3 e PETR4). Só fatos relevantes pendentes bloqueiam a janela do sinal; releases são complemento.
+
 O LLM é o **Gemini** (`gemini-3.5-flash-lite`, plano grátis), configurado por `GEMINI_MODELO` no `.env`. Ele lê:
 - todos os fatos relevantes;
 - os releases de resultado em português, só nas primeiras 4 páginas, que trazem os destaques.

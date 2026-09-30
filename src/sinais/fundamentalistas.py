@@ -256,6 +256,7 @@ def calcular(conn: sqlite3.Connection, ate: str | None = None) -> pd.DataFrame:
             continue
         largo = sinais_ativo(ticker, cot, fotografias(docs_empresa), proventos[proventos["ticker"] == ticker])
         longo = largo.melt(id_vars="data", var_name="nome", value_name="valor").dropna(subset=["valor"])
+        longo["valor"] = pd.to_numeric(longo["valor"], errors="coerce")  # coluna toda vazia vira object
         longo = longo[np.isfinite(longo["valor"])]
         longo["ticker"] = ticker
         partes.append(longo)
