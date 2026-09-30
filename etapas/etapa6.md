@@ -18,6 +18,13 @@ Gerar um relatório diário legível que explique o ranking, os sinais e as not�
 6. `scripts/rodar_diario.py` que encadeia coleta → sinais → ranking → paper trading → relatório, com log e tratamento de falhas.
 7. Instruções de agendamento (cron no Linux/Mac ou Agendador de Tarefas no Windows).
 
+## Requisito do usuário: sempre atualizado (CLAUDE.md, regra 15)
+- O `rodar_diario.py` não basta. É preciso um **agendador contínuo**:
+  - pipeline completo depois do fechamento, quando sai o arquivo da B3 (~21h);
+  - durante o pregão, um ciclo intradiário a cada ~15 min com cotações recentes, notícias e recálculo **provisório** de sinais e score.
+- Os agendamentos são pensados para rodar na nuvem (etapa 8). O Agendador de Tarefas do Windows fica só como opção local.
+- Antes de implementar, verificar e apresentar as fontes gratuitas de cotação intradiária (atraso, limites, termos).
+
 ## Critério de pronto
 - Relatório gerado para os últimos 5 pregões sem erros de números.
 - Pipeline diário completo roda com um único comando.

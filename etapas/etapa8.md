@@ -83,6 +83,14 @@ Ao final desta etapa, o Claude deve gerar um arquivo `DEPLOY.md` (fora do git, o
 - Como rodar a coleta manualmente se o agendamento falhar.
 - Como acessar os logs de produção.
 
+## Requisito do usuário: sempre atualizado (CLAUDE.md, regra 15)
+- A nuvem roda os agendamentos sozinha, sem o PC do usuário: ciclo intradiário no pregão e pipeline completo à noite.
+- Na tabela de opções da 8.1, avaliar também:
+  - se o serviço "dorme" (o site precisa responder atualizado mesmo depois de ocioso);
+  - como rodar tarefas agendadas de graça (ex.: GitHub Actions agendado);
+  - o limite do banco (hoje ~190 MB em SQLite);
+  - como rodar o modelo de sentimento (torch, ~1 GB) ou substituí-lo por LLM na nuvem.
+
 ## Critério de pronto
 - Backend respondendo na URL de produção (`GET /health` retorna 200).
 - Frontend acessível via URL pública, conectado ao backend de produção.

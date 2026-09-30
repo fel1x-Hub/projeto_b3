@@ -85,6 +85,12 @@ Regras de UI:
 - Testes de componentes React críticos (ranking table, carteira summary).
 - Teste de importação de CSV com arquivo de exemplo anonimizado.
 
+## Requisito do usuário: sempre atualizado (CLAUDE.md, regra 15)
+- As telas se atualizam sozinhas (polling curto ou SSE), sem botão de atualizar e sem recarregar a página.
+- Cada tela mostra "atualizado às HH:MM", se o mercado está aberto ou fechado, e o selo **provisório** nos valores intradiários.
+- O detalhe do ativo mostra a situação do momento: preço e variação do dia, sinais recalculados e score/posição no ranking atuais.
+- A API expõe quando cada dado foi atualizado (ex.: campo `atualizado_em` em cada resposta).
+
 ## Critério de pronto
 - `uvicorn src.api.main:app` sobe sem erros e o Swagger abre.
 - Todas as telas carregam com dados reais do banco.
