@@ -24,7 +24,7 @@ def montar(conn: sqlite3.Connection, resultados: list[ResultadoExecucao],
     revisoes = conn.execute("SELECT COUNT(*) FROM revisoes WHERE detectado_em >= ?", (inicio_execucao,)).fetchone()[0]
     linhas.append(f"  {'revisoes':<16} {revisoes:>9} nesta execução (correções feitas pelas fontes)")
 
-    linhas += ["", "=== Cobertura por ativo ===",
+    linhas += ["", "=== Cobertura por ativo (exceções manuais + universo do último pregão) ===",
                f"  {'ticker':<8} {'cotações de':<11} {'até':<10} {'pregões':>7} {'proventos':>9} {'docs':>5} {'notícias':>8}"]
     for r in conn.execute("""
         SELECT a.ticker,
@@ -34,7 +34,9 @@ def montar(conn: sqlite3.Connection, resultados: list[ResultadoExecucao],
                (SELECT COUNT(*) FROM proventos p WHERE p.ticker = a.ticker) AS proventos,
                (SELECT COUNT(*) FROM documentos d WHERE d.ticker = a.ticker) AS docs,
                (SELECT COUNT(*) FROM noticias_ativos n WHERE n.ticker = a.ticker) AS noticias
-        FROM ativos a WHERE a.ativo = 1 ORDER BY a.tipo, a.ticker
+        FROM ativos a WHERE a.ativo = 1 AND (a.origem = 'manual' OR a.ticker IN (
+            SELECT ticker FROM universo WHERE data = (SELECT MAX(data) FROM universo)))
+        ORDER BY a.tipo, a.ticker
     """):
         linhas.append(f"  {r['ticker']:<8} {r['ini'] or '-':<11} {r['fim'] or '-':<10} {r['pregoes']:>7} "
                       f"{r['proventos']:>9} {r['docs']:>5} {r['noticias']:>8}")
@@ -55,7 +57,8 @@ def montar(conn: sqlite3.Connection, resultados: list[ResultadoExecucao],
     falhas = [r for r in resultados if r.status != "sucesso"]
     linhas += ["", "=== Alertas ==="]
     if sem_cvm:
-        linhas.append(f"  Ações sem código CVM (sem documentos/demonstrações): {', '.join(sem_cvm)}")
+        exemplos = ", ".join(sem_cvm[:15]) + (" ..." if len(sem_cvm) > 15 else "")
+        linhas.append(f"  {len(sem_cvm)} ações sem código CVM (sem documentos/demonstrações): {exemplos}")
     for r in falhas:
         linhas.append(f"  {r.fonte}: {r.status} - {r.erro}")
     if not sem_cvm and not falhas:

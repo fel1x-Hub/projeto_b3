@@ -1,8 +1,14 @@
 """Extrai eventos de fatos relevantes e releases com o Gemini (plano gratuito).
 
 Uso:
-    python scripts/extrair_eventos.py               # até 300 documentos por execução
-    python scripts/extrair_eventos.py --limite 50
+    python scripts/extrair_eventos.py               # títulos pendentes + até 300 textos completos
+    python scripts/extrair_eventos.py --limite 50   # menos textos completos
+    python scripts/extrair_eventos.py --so-titulos
+
+1. Títulos: classifica em lotes (~40 por requisição) os títulos de todos os
+   fatos relevantes ainda sem evento, cobrindo todas as empresas.
+2. Texto completo: lê o PDF, das empresas mais líquidas para as menos; tem
+   preferência sobre a classificação pelo título.
 
 Retomável: documentos já processados (ou com erro registrado) não são
 reenviados, e respostas ficam em cache. Se a cota gratuita acabar, a execução
@@ -29,7 +35,8 @@ logger = logging.getLogger("extrair_eventos")
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--limite", type=int, default=300)
+    parser.add_argument("--limite", type=int, default=300, help="máximo de textos completos por execução")
+    parser.add_argument("--so-titulos", action="store_true")
     parser.add_argument("--modelo", default=None, help="padrão: GEMINI_MODELO do .env")
     parser.add_argument("--db", type=Path, default=None)
     args = parser.parse_args(argv)
@@ -39,11 +46,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         migrar(conn)
         llm = eventos.ClienteGemini(modelo=args.modelo)
-        r = eventos.processar(conn, llm, ClienteHTTP(), limite=args.limite)
+        t = eventos.processar_titulos(conn, llm)
+        print(f"Títulos ({llm.modelo}): {t['classificados']} classificados em {t['lotes']} lotes "
+              f"({t['cache']} do cache), {t['erros']} erros.")
+        if not args.so_titulos:
+            r = eventos.processar(conn, llm, ClienteHTTP(), limite=args.limite)
+            print(f"Texto completo: {r['processados']} processados ({r['cache']} do cache), "
+                  f"{r['erros']} erros, {r['pendentes_restantes']} pendentes.")
     finally:
         conn.close()
-    print(f"Modelo {llm.modelo}: {r['processados']} processados ({r['cache']} do cache), "
-          f"{r['erros']} erros, {r['pendentes_restantes']} pendentes.")
     return 0
 
 

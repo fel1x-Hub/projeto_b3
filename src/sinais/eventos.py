@@ -18,8 +18,12 @@ Sinais por ativo e pregão D (eventos com disponivel_em <= corte(D)); cada
 evento vale s = direção (+1/0/-1) x relevância (1-5):
     evt_saldo   soma de s x 0,5^(idade/10), idade em pregões, até 63 pregões
     evt_n_21d   quantidade de eventos nos últimos 21 pregões
-Um dia só recebe sinal se todos os documentos da sua janela já foram
-processados (senão um documento pendente viraria um falso "sem evento").
+Cobertura de todas as empresas: `processar_titulos` classifica os títulos dos
+fatos relevantes em lotes (~40 por requisição); `processar` lê o texto
+completo, priorizando as empresas mais líquidas, e tem preferência no sinal.
+Um dia só recebe sinal se todos os fatos relevantes da sua janela já foram
+tratados (senão um pendente viraria um falso "sem evento"); releases são
+complemento e não bloqueiam.
 """
 
 import hashlib
@@ -67,10 +71,25 @@ class Evento(BaseModel):
     resumo: str = Field(max_length=500, description="Resumo em até 2 frases, em português")
 
 
+class EventoTitulo(BaseModel):
+    """Classificação feita só pelo título (assunto) do documento, em lote."""
+    id: int
+    tipo_evento: Literal[
+        "resultado_periodo", "dividendos_jcp", "recompra_acoes", "emissao_divida", "emissao_acoes",
+        "fusao_aquisicao", "venda_ativos", "mudanca_gestao", "guidance_projecao", "producao_operacional",
+        "regulatorio_juridico", "contrato_relevante", "reestruturacao", "outro"]
+    direcao: Literal["positiva", "neutra", "negativa"]
+    relevancia: int = Field(ge=1, le=5)
+
+
+class LoteTitulos(BaseModel):
+    eventos: list[EventoTitulo]
+
+
 class LLM(Protocol):
     modelo: str
 
-    def classificar(self, prompt: str) -> str: ...
+    def classificar(self, prompt: str, schema: type[BaseModel] = Evento) -> str: ...
 
 
 class CotaEsgotada(Exception):
@@ -88,17 +107,23 @@ class ClienteGemini:
             raise RuntimeError("GEMINI_API_KEY ausente no .env")
         self.modelo = modelo or os.getenv("GEMINI_MODELO") or MODELO_PADRAO
         self._cliente = genai.Client(api_key=chave)
-        self._config = types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_json_schema=Evento.model_json_schema(),
-            automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
-        )
+        self._types = types
+        self._configs: dict[type, object] = {}
         # plano grátis: ~10 requisições/min no flash-lite (429 observado com 15/min)
         pausa = pausa if pausa is not None else float(os.getenv("GEMINI_PAUSA", "6.5"))
         self._pausa, self._tentativas, self._dormir = pausa, tentativas, dormir
         self._ultima = 0.0
 
-    def classificar(self, prompt: str) -> str:
+    def _config(self, schema: type[BaseModel]):
+        if schema not in self._configs:
+            self._configs[schema] = self._types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_json_schema=schema.model_json_schema(),
+                automatic_function_calling=self._types.AutomaticFunctionCallingConfig(disable=True),
+            )
+        return self._configs[schema]
+
+    def classificar(self, prompt: str, schema: type[BaseModel] = Evento) -> str:
         from google.genai import errors
 
         for tentativa in range(self._tentativas):
@@ -108,7 +133,7 @@ class ClienteGemini:
             self._ultima = time.monotonic()
             try:
                 return self._cliente.models.generate_content(
-                    model=self.modelo, contents=prompt, config=self._config).text
+                    model=self.modelo, contents=prompt, config=self._config(schema)).text
             except errors.APIError as e:
                 if e.code not in (429, 500, 503) or tentativa == self._tentativas - 1:
                     if e.code == 429:
@@ -166,6 +191,17 @@ def _situacao(conn: sqlite3.Connection, modelo: str) -> tuple[set[int], set[int]
     return feitos, com_erro
 
 
+def _por_prioridade(conn: sqlite3.Connection, docs: pd.DataFrame) -> pd.DataFrame:
+    """Ordena documentos pelas empresas mais líquidas hoje (tabela universo),
+    depois pelo mais antigo: com a cota grátis limitada, o texto completo é
+    lido primeiro onde mais importa."""
+    liquidez = dict(conn.execute(
+        "SELECT ticker, volume_medio FROM universo WHERE data = (SELECT MAX(data) FROM universo)").fetchall())
+    return (docs.assign(_prioridade=docs["ticker"].map(liquidez).fillna(0.0))
+            .sort_values(["_prioridade", "disponivel_em"], ascending=[False, True])
+            .drop(columns="_prioridade"))
+
+
 def _registrar_erro(conn, doc_id, modelo, erro, bruta=None):
     with conn:
         conn.execute("INSERT INTO llm_erros (documento_id, modelo, versao_prompt, erro, resposta_bruta, ocorrido_em) "
@@ -178,7 +214,7 @@ def processar(conn: sqlite3.Connection, llm: LLM, http, limite: int | None = Non
     Para ao atingir `limite` ou a cota do plano gratuito (retomável)."""
     docs = documentos_elegiveis(conn)
     feitos, com_erro = _situacao(conn, llm.modelo)
-    pendentes = docs[~docs["id"].isin(feitos | com_erro)].sort_values("disponivel_em")
+    pendentes = _por_prioridade(conn, docs[~docs["id"].isin(feitos | com_erro)])
     if limite is not None:
         pendentes = pendentes.head(limite)
     contagem = {"processados": 0, "cache": 0, "erros": 0, "pendentes_restantes": 0}
@@ -233,6 +269,96 @@ def processar(conn: sqlite3.Connection, llm: LLM, http, limite: int | None = Non
     return contagem
 
 
+# ---------------------------------------------------------------- títulos em lote
+
+SUFIXO_TITULOS = ":titulos"
+TAMANHO_LOTE = 40
+
+
+def montar_prompt_titulos(lote: pd.DataFrame) -> str:
+    linhas = "\n".join(f"{r.id} | {r.disponivel_em[:10]} | {r.ticker} | {r.assunto}" for r in lote.itertuples())
+    return (
+        "Você analisa fatos relevantes de companhias abertas brasileiras para um investidor.\n"
+        "Abaixo, um por linha: id | data de entrega à CVM | ticker | título do documento.\n"
+        "Classifique CADA um só pelo título, devolvendo o mesmo id. Regras:\n"
+        "- Julgue apenas pelo título e pelo que se sabia na data; não use conhecimento posterior.\n"
+        "- direção = efeito esperado para o acionista; se o título não permitir julgar, use 'neutra'.\n"
+        "- relevância 1 (rotina) a 5 (altera a tese); título vago = relevância baixa.\n\n"
+        + linhas
+    )
+
+
+def processar_titulos(conn: sqlite3.Connection, llm: LLM, limite_lotes: int | None = None,
+                      tamanho_lote: int = TAMANHO_LOTE) -> dict[str, int]:
+    """Classifica pelo TÍTULO, em lotes, os fatos relevantes que ainda não
+    têm evento (nem por texto completo nem por título). Cobre todas as
+    empresas com poucas requisições; o texto completo (`processar`) aprofunda
+    depois, por ordem de liquidez, e tem preferência no sinal."""
+    modelo_t = llm.modelo + SUFIXO_TITULOS
+    docs = documentos_elegiveis(conn)
+    fatos = docs[docs["tipo"] == "fato_relevante"]
+    feitos_t, erros_t = _situacao(conn, modelo_t)
+    feitos_c, _ = _situacao(conn, llm.modelo)
+    pendentes = _por_prioridade(conn, fatos[~fatos["id"].isin(feitos_t | erros_t | feitos_c)])
+    contagem = {"classificados": 0, "cache": 0, "erros": 0, "lotes": 0}
+
+    sem_titulo = pendentes[pendentes["assunto"].fillna("").str.strip() == ""]
+    for doc_id in sem_titulo["id"]:
+        _registrar_erro(conn, int(doc_id), modelo_t, "titulo: documento sem assunto")
+        contagem["erros"] += 1
+    pendentes = pendentes.drop(sem_titulo.index)
+
+    for inicio in range(0, len(pendentes), tamanho_lote):
+        if limite_lotes is not None and contagem["lotes"] >= limite_lotes:
+            break
+        lote = pendentes.iloc[inicio:inicio + tamanho_lote]
+        prompt = montar_prompt_titulos(lote)
+        chave = chave_cache(modelo_t, prompt)
+        linha = conn.execute("SELECT resposta FROM llm_cache WHERE chave = ?", (chave,)).fetchone()
+        if linha:
+            bruta = linha[0]
+            contagem["cache"] += 1
+        else:
+            try:
+                bruta = llm.classificar(prompt, schema=LoteTitulos)
+            except CotaEsgotada as e:
+                logger.warning("Cota do Gemini esgotada; continue depois: %s", e)
+                break
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Lote de títulos falhou: %s", e)
+                contagem["erros"] += len(lote)
+                for doc_id in lote["id"]:
+                    _registrar_erro(conn, int(doc_id), modelo_t, f"llm: {type(e).__name__}: {e}")
+                continue
+        try:
+            resposta = {e.id: e for e in LoteTitulos.model_validate_json(bruta).eventos}
+        except ValidationError as e:
+            for doc_id in lote["id"]:
+                _registrar_erro(conn, int(doc_id), modelo_t, f"schema: {e.errors()[0]['msg']}", bruta)
+            contagem["erros"] += len(lote)
+            continue
+
+        agora = para_iso_utc(datetime.now(timezone.utc))
+        with conn:
+            conn.execute("INSERT OR IGNORE INTO llm_cache (chave, modelo, versao_prompt, resposta, criado_em) "
+                         "VALUES (?, ?, ?, ?, ?)", (chave, modelo_t, VERSAO_PROMPT, bruta, agora))
+            for doc in lote.itertuples():
+                ev = resposta.get(int(doc.id))
+                if ev is None:  # o modelo pulou este id: fica para o texto completo
+                    conn.execute("INSERT INTO llm_erros (documento_id, modelo, versao_prompt, erro, resposta_bruta, "
+                                 "ocorrido_em) VALUES (?, ?, ?, ?, NULL, ?)",
+                                 (int(doc.id), modelo_t, VERSAO_PROMPT, "titulo: id ausente na resposta", agora))
+                    contagem["erros"] += 1
+                    continue
+                conn.execute("INSERT INTO eventos_documentos (documento_id, modelo, versao_prompt, tipo_evento, "
+                             "direcao, relevancia, resumo, calculado_em) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                             (int(doc.id), modelo_t, VERSAO_PROMPT, ev.tipo_evento, ev.direcao, ev.relevancia,
+                              (doc.assunto or "")[:500], agora))
+                contagem["classificados"] += 1
+        contagem["lotes"] += 1
+    return contagem
+
+
 # ---------------------------------------------------------------- sinais
 
 def sinais_ativo(pregoes: pd.Series, eventos: pd.DataFrame, pendentes: pd.Series, inicio: pd.Timestamp) -> pd.DataFrame:
@@ -263,13 +389,20 @@ def calcular(conn: sqlite3.Connection, ate: str | None = None, modelo: str | Non
                           "nome": pd.Series(dtype=object), "valor": pd.Series(dtype=float)})
     if docs.empty:
         return vazio
-    eventos = pd.read_sql_query("SELECT documento_id, direcao, relevancia FROM eventos_documentos "
-                                "WHERE modelo = ? AND versao_prompt = ?", conn, params=(modelo, VERSAO_PROMPT))
-    feitos, com_erro = _situacao(conn, modelo)
-    docs = docs.merge(eventos, left_on="id", right_on="documento_id", how="left")
-    docs["s"] = docs["direcao"].map(DIRECAO) * docs["relevancia"]
+    def _eventos(m):
+        e = pd.read_sql_query("SELECT documento_id, direcao, relevancia FROM eventos_documentos "
+                              "WHERE modelo = ? AND versao_prompt = ?", conn, params=(m, VERSAO_PROMPT))
+        return e.assign(s=e["direcao"].map(DIRECAO) * e["relevancia"]).set_index("documento_id")["s"]
+
+    completo, titulo = _eventos(modelo), _eventos(modelo + SUFIXO_TITULOS)
+    docs = docs.copy()
+    docs["s"] = docs["id"].map(completo).fillna(docs["id"].map(titulo))  # texto completo tem preferência
     docs["disponivel_em"] = pd.to_datetime(docs["disponivel_em"], utc=True)
-    pendente = ~docs["id"].isin(feitos | com_erro)
+    feitos_c, erros_c = _situacao(conn, modelo)
+    feitos_t, erros_t = _situacao(conn, modelo + SUFIXO_TITULOS)
+    # só fatos relevantes bloqueiam a janela; releases são complemento opcional
+    tratados = feitos_c | erros_c | feitos_t | erros_t
+    pendente = (docs["tipo"] == "fato_relevante") & ~docs["id"].isin(tratados)
     inicio = pd.to_datetime(pd.read_sql_query("SELECT MIN(disponivel_em) m FROM documentos", conn)["m"].iloc[0], utc=True)
     cotacoes = base.carregar_cotacoes(conn, ate)
 

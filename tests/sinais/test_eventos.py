@@ -20,7 +20,7 @@ class LLMFalso:
         self.chamadas = 0
         self.esgota_apos = esgota_apos
 
-    def classificar(self, prompt):
+    def classificar(self, prompt, schema=None):
         self.chamadas += 1
         if self.esgota_apos is not None and self.chamadas > self.esgota_apos:
             raise eventos.CotaEsgotada("429")

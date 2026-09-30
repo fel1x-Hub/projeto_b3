@@ -50,7 +50,7 @@ def test_sucesso_retorna_zero(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(coletar, "FONTES", [("cotacoes", _fonte_cotacoes, "b3")])
     assert coletar.main(["--db", str(tmp_path / "b3.db")]) == 0
     # banco novo: o cadastro CVM não rodou, então o resumo avisa
-    assert "Ações sem código CVM" in capsys.readouterr().out.split("=== Alertas ===")[1]
+    assert "ações sem código CVM" in capsys.readouterr().out.split("=== Alertas ===")[1]
 
 
 def test_desde_padrao_em_29_de_fevereiro():
