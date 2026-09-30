@@ -8,7 +8,7 @@ TABELAS = {
     "ativos", "cotacoes", "macro", "noticias", "noticias_ativos",
     "documentos", "execucoes_coleta", "revisoes", "schema_versao",
     "proventos", "demonstracoes",
-    "sinais", "sentimento_noticias", "eventos_documentos", "llm_cache", "llm_erros", "universo", "ranking",
+    "sinais", "sentimento_noticias", "eventos_documentos", "llm_cache", "llm_erros", "universo", "ranking", "paper_config", "paper_carteira", "paper_patrimonio",
 }
 INDICES = {
     "idx_noticias_disponivel_em", "idx_noticias_ativos_ticker",

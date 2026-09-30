@@ -322,3 +322,29 @@ CREATE TABLE ranking (
 );
 CREATE INDEX idx_ranking_versao_data ON ranking (versao_modelo, data, posicao);
 """
+
+
+SCHEMA_V7 = f"""
+-- Paper trading (etapa 5.2): a regra da carteira aplicada daqui para a frente,
+-- com o ranking gerado a cada dia só com os dados daquele dia. Nenhuma ordem
+-- real é enviada; é só registro.
+CREATE TABLE paper_config (
+    chave         TEXT PRIMARY KEY,         -- ex.: 'inicio' (data do primeiro ranking do paper trading)
+    valor         TEXT NOT NULL
+);
+CREATE TABLE paper_carteira (
+    {_data("data_execucao")},             -- fechamento em que a carteira foi montada
+    ticker        TEXT NOT NULL REFERENCES ativos (ticker),
+    peso_alvo     REAL NOT NULL CHECK (peso_alvo > 0 AND peso_alvo <= 1),
+    {_data("data_ranking")},              -- ranking que originou a decisão
+    PRIMARY KEY (data_execucao, ticker)
+);
+CREATE TABLE paper_patrimonio (
+    {_data("data")},
+    valor         REAL NOT NULL,            -- começa em 1
+    retorno       REAL NOT NULL,            -- do dia, líquido de custos
+    custo         REAL NOT NULL DEFAULT 0,  -- custo de rebalanceamento cobrado no dia
+    {_ts("calculado_em")},
+    PRIMARY KEY (data)
+);
+"""

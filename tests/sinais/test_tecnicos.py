@@ -104,3 +104,29 @@ def test_gravar_e_idempotente(conn_precos):
     assert conn_precos.execute("SELECT COUNT(*) FROM sinais").fetchone()[0] == n
     linha = conn_precos.execute("SELECT data, disponivel_em FROM sinais LIMIT 1").fetchone()
     assert linha["disponivel_em"] == base.corte(date.fromisoformat(linha["data"]))
+
+
+def test_grupamento_nao_registrado_nao_vira_retorno():
+    # KRSA3/OIBR3 reais: grupamento 10:1 sem registro -> preço x10 num dia
+    cot = _cot(["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04"], [0.50, 0.52, 5.1, 5.0])
+    r = retornos_totais(cot, _prov())
+    assert r.iloc[2] == 0.0                              # salto contábil neutralizado
+    assert r.iloc[3] == pytest.approx(5.0 / 5.1 - 1)     # dias seguintes normais
+
+
+def test_colapso_real_e_mantido():
+    # Americanas em 12/01/2023: -77% (razão 0,23, longe de 1/4 e de 1/5)
+    cot = _cot(["2023-01-11", "2023-01-12"], [12.00, 2.72])
+    assert retornos_totais(cot, _prov()).iloc[1] == pytest.approx(2.72 / 12 - 1)
+
+
+def test_criterio_de_evento_nao_registrado():
+    from src.sinais.precos import evento_nao_registrado
+    assert evento_nao_registrado(10.2) and evento_nao_registrado(1 / 3.05) and evento_nao_registrado(39.75 / 1.0)
+    assert not evento_nao_registrado(1.3) and not evento_nao_registrado(0.23) and not evento_nao_registrado(2.5)
+
+
+def test_alta_de_mais_de_3x_sem_evento_e_neutralizada():
+    # TRAD3 real: +665% num dia (grupamento com razão distorcida)
+    cot = _cot(["2024-07-19", "2024-07-22"], [1.00, 7.65])
+    assert retornos_totais(cot, _prov()).iloc[1] == 0.0

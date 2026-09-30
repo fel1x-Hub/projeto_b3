@@ -32,12 +32,40 @@ def _eventos_por_pregao(datas: pd.Series, proventos: pd.DataFrame) -> tuple[pd.S
     return fator, dividendo
 
 
+SALTO_MINIMO = 0.5      # |variação de preço| mínima para suspeitar de evento não registrado
+TOLERANCIA_RAZAO = 0.04  # razão a até 4% de um inteiro (ou do inverso de um inteiro)
+ALTA_MAXIMA_SEM_EVENTO = 3.0  # preço mais que triplica num dia sem evento: tratado como contábil
+
+
+def evento_nao_registrado(razao: float) -> bool:
+    """Razão de preço P_t / P_{t-1} típica de grupamento ou desdobramento que a
+    fonte de proventos não registrou: ~k ou ~1/k com k inteiro entre 2 e 100
+    (ex.: grupamento 10:1 multiplica o preço por ~10). Colapsos e disparadas
+    reais raramente caem tão perto de um inteiro (Americanas em 12/01/2023: x0,23)."""
+    if not np.isfinite(razao) or razao <= 0 or abs(razao - 1) < SALTO_MINIMO:
+        return False
+    k = razao if razao >= 1 else 1 / razao
+    return 2 <= round(k) <= 100 and abs(k / round(k) - 1) <= TOLERANCIA_RAZAO
+
+
 def retornos_totais(cotacoes: pd.DataFrame, proventos: pd.DataFrame) -> pd.Series:
-    """Retornos diários de um único ativo (índice = datas dos pregões)."""
+    """Retornos diários de um único ativo (índice = datas dos pregões).
+
+    Dia com salto de preço típico de grupamento/desdobramento sem registro na
+    tabela de proventos (ver `evento_nao_registrado`) recebe retorno 0: o salto
+    é contábil, não ganho nem perda do acionista. A detecção só usa P_t e P_{t-1}
+    (causal). Limitação: o movimento real de mercado daquele dia se perde."""
     cot = cotacoes.sort_values("data").reset_index(drop=True)
     fator, dividendo = _eventos_por_pregao(cot["data"], proventos)
     preco = cot["fechamento"]
     retorno = (preco * fator + dividendo) / preco.shift(1) - 1
+    sem_evento = (fator.to_numpy() == 1.0) & (dividendo.to_numpy() == 0.0)
+    razao = (preco / preco.shift(1)).to_numpy()
+    suspeito = sem_evento & np.array([evento_nao_registrado(x) for x in razao])
+    # conservador para quem compra: alta de mais de 3x num dia sem evento registrado também é
+    # tratada como contábil (grupamento com razão distorcida pelo pregão); quedas reais ficam
+    suspeito |= sem_evento & (np.nan_to_num(razao, nan=1.0) > ALTA_MAXIMA_SEM_EVENTO)
+    retorno[suspeito] = 0.0
     return pd.Series(retorno.to_numpy(), index=pd.DatetimeIndex(cot["data"]), name="retorno")
 
 
