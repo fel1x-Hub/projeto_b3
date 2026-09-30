@@ -59,8 +59,9 @@ def com_posicao(scores: pd.DataFrame) -> pd.DataFrame:
     return scores.sort_values(["data", "posicao"]).reset_index(drop=True)
 
 
-def gravar(conn: sqlite3.Connection, scores: pd.DataFrame, versao: str) -> int:
-    """Substitui o ranking da `versao` nas datas presentes em `scores`."""
+def gravar(conn: sqlite3.Connection, scores: pd.DataFrame, versao: str, disponivel_em: str | None = None) -> int:
+    """Substitui o ranking da `versao` nas datas presentes em `scores`.
+    `disponivel_em` padrão = corte do pregão (19h); o provisório usa o momento do cálculo."""
     ranking = com_posicao(scores)
     agora = agora_utc_iso()
     datas = sorted({d.date().isoformat() for d in ranking["data"]})
@@ -70,7 +71,7 @@ def gravar(conn: sqlite3.Connection, scores: pd.DataFrame, versao: str) -> int:
             "INSERT INTO ranking (data, ticker, score, posicao, versao_modelo, disponivel_em, calculado_em) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)",
             [(r.data.date().isoformat(), r.ticker, float(r.score), int(r.posicao), versao,
-              base.corte(r.data.date()), agora) for r in ranking.itertuples(index=False)])
+              disponivel_em or base.corte(r.data.date()), agora) for r in ranking.itertuples(index=False)])
     logger.info("Ranking %s: %d linhas em %d datas", versao, len(ranking), len(datas))
     return len(ranking)
 
