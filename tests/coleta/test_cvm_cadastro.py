@@ -63,11 +63,18 @@ def test_preenche_cnpj_e_codigo_inclusive_unit_pelo_radical(conn_ativos):
 
 
 def test_ticker_inexistente_gera_coleta_parcial(conn_ativos):
-    fca = _fca(("33.000.167/0001-01", "PETR4", f"{ANO}-01-01", ""),
-               ("30.306.294/0001-45", "BPAC3", f"{ANO}-01-01", "2020-01-01"))  # negociação encerrada
+    fca = _fca(("33.000.167/0001-01", "PETR4", f"{ANO}-01-01", ""))  # BTG não aparece em nenhum FCA
     with pytest.raises(ColetaParcial, match="BPAC11") as e:
         cvm_cadastro.coletar(conn_ativos, date(2021, 1, 1), http=_http(fca))
     assert e.value.novos == 1
+
+
+def test_ticker_com_negociacao_encerrada_ainda_e_mapeado(conn_ativos):
+    # empresas que mudaram de código ou saíram da bolsa precisam de fundamentos no histórico
+    fca = _fca(("33.000.167/0001-01", "PETR4", f"{ANO}-01-01", ""),
+               ("30.306.294/0001-45", "BPAC3", f"{ANO}-01-01", "2020-01-01"))
+    cvm_cadastro.coletar(conn_ativos, date(2021, 1, 1), http=_http(fca))
+    assert _cadastro(conn_ativos)["BPAC11"] == ("30.306.294/0001-45", "22616")
 
 
 def test_sem_fca_disponivel_e_falha(conn_ativos):

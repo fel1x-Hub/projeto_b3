@@ -42,11 +42,15 @@ def ler_csv(caminho: Path, nome_interno: str | None = None) -> list[dict]:
 
 
 def empresas_acompanhadas(conn: sqlite3.Connection) -> dict[str, list[str]]:
-    """{codigo_cvm: [tickers]} das ações ativas com código CVM conhecido."""
+    """{codigo_cvm: [tickers]} das ações ativas com código CVM conhecido.
+    O primeiro ticker (exceção manual, senão ordem alfabética) é o representativo
+    gravado em `documentos.ticker`; os sinais estendem o documento a todos os
+    tickers da empresa."""
     empresas: dict[str, list[str]] = {}
     for r in conn.execute(
         "SELECT codigo_cvm, ticker FROM ativos "
-        "WHERE ativo = 1 AND tipo = 'acao' AND codigo_cvm IS NOT NULL ORDER BY ticker"
+        "WHERE ativo = 1 AND tipo = 'acao' AND codigo_cvm IS NOT NULL "
+        "ORDER BY origem = 'manual' DESC, ticker"  # 1º da lista = ticker representativo (estável)
     ):
         empresas.setdefault(r["codigo_cvm"], []).append(r["ticker"])
     return empresas

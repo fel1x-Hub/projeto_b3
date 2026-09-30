@@ -406,10 +406,17 @@ def calcular(conn: sqlite3.Connection, ate: str | None = None, modelo: str | Non
     inicio = pd.to_datetime(pd.read_sql_query("SELECT MIN(disponivel_em) m FROM documentos", conn)["m"].iloc[0], utc=True)
     cotacoes = base.carregar_cotacoes(conn, ate)
 
+    # o documento é da EMPRESA: vale para todos os tickers dela (ex.: PETR3 e PETR4)
+    empresas = pd.read_sql_query("SELECT ticker, codigo_cvm FROM ativos WHERE codigo_cvm IS NOT NULL", conn)
+    docs = docs.assign(pendente=pendente.to_numpy()).merge(
+        empresas.rename(columns={"ticker": "_repr"}), left_on="ticker", right_on="_repr", how="left")
+    docs = docs.merge(empresas.rename(columns={"ticker": "alvo"}), on="codigo_cvm", how="left")
+    docs["alvo"] = docs["alvo"].fillna(docs["ticker"])
+
     partes = []
-    for ticker, cot in cotacoes[cotacoes["ticker"].isin(docs["ticker"].unique())].groupby("ticker"):
-        d = docs[docs["ticker"] == ticker]
-        pend = docs.loc[pendente & (docs["ticker"] == ticker), "disponivel_em"]
+    for ticker, cot in cotacoes[cotacoes["ticker"].isin(docs["alvo"].unique())].groupby("ticker"):
+        d = docs[docs["alvo"] == ticker]
+        pend = d.loc[d["pendente"], "disponivel_em"]
         largo = sinais_ativo(cot["data"], d[d["s"].notna()], pend, inicio)
         longo = largo.melt(id_vars="data", var_name="nome", value_name="valor")
         longo["ticker"] = ticker

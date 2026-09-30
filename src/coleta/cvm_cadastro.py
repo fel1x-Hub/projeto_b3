@@ -1,7 +1,8 @@
 """Cadastro CVM: preenche `cnpj` e `codigo_cvm` dos ativos e valida os tickers.
 
-- FCA (valor mobiliário): ticker -> CNPJ. Usa o ano corrente e o anterior,
-  porque o FCA do ano só existe depois que a empresa o entrega.
+- FCA (valor mobiliário): ticker -> CNPJ. Usa os FCAs de todo o período
+  (anos antigos listam tickers de empresas que mudaram de código ou saíram da
+  bolsa, necessários para o histórico sem viés de sobrevivência).
 - Units nem sempre aparecem como código de negociação; nesse caso busca pelo
   radical (4 letras) se ele levar a um único CNPJ e, por último, usa o CNPJ
   informado manualmente na coluna `cnpj` de config/ativos.csv.
@@ -28,10 +29,14 @@ def _mapa_ticker_cnpj(linhas_fca: list[dict]) -> tuple[dict[str, str], dict[str,
     prevalecendo (linhas ordenadas por data de referência e versão)."""
     por_ticker: dict[str, str] = {}
     por_radical: dict[str, set[str]] = {}
-    linhas = sorted(linhas_fca, key=lambda r: (r["Data_Referencia"], int(r["Versao"] or 0)))
+    # negociação encerrada primeiro (menor prioridade), depois por data e versão:
+    # tickers antigos (empresas que mudaram de código ou saíram da bolsa) ainda
+    # são mapeados, mas um ticker ativo sempre prevalece
+    linhas = sorted(linhas_fca, key=lambda r: (not r["Data_Fim_Negociacao"], r["Data_Referencia"],
+                                               int(r["Versao"] or 0)))
     for r in linhas:
         ticker = (r["Codigo_Negociacao"] or "").strip().upper()
-        if not ticker or r["Data_Fim_Negociacao"]:
+        if not ticker:
             continue
         por_ticker[ticker] = r["CNPJ_Companhia"]
         por_radical.setdefault(ticker[:4], set()).add(r["CNPJ_Companhia"])
@@ -51,7 +56,7 @@ def coletar(conn: sqlite3.Connection, desde: date, http: ClienteHTTP | None = No
     ano = hoje_brt().year
 
     linhas_fca: list[dict] = []
-    for a in (ano - 1, ano):
+    for a in range(min(desde.year, ano - 1), ano + 1):  # anos antigos listam tickers já extintos
         try:
             zip_fca = cvm_comum.baixar(http, f"DOC/FCA/DADOS/fca_cia_aberta_{a}.zip", ano=a)
         except Exception as e:  # o FCA do ano pode ainda não existir em janeiro

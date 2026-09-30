@@ -14,6 +14,7 @@ nível menor. Dia sem arquivo = feriado ou pregão ainda não publicado.
 
 import io
 import logging
+import re
 import sqlite3
 import zipfile
 from calendar import monthrange
@@ -96,10 +97,18 @@ def _subdividir(arq: Arquivo) -> list[Arquivo]:
     return []
 
 
+# ticker de ação/unit negociada em bolsa: 4 caracteres + classe 3 a 8, 11 ou 12.
+# Fora: balcão (ex.: EQMA3B, MRSA3B) e recibos temporários de reestruturação
+# (ex.: AZUL53, AZUL97, GOLL54).
+TICKER_ACAO = re.compile(r"^[A-Z][A-Z0-9]{3}(?:[3-8]|1[12])$")
+
+
 def eh_acao(linha: str) -> bool:
-    """Ação ou unit de lote padrão: código BDI 02 e espécie ON, PN(A/B...) ou UNT.
-    Ficam de fora FIIs (BDI 12), ETFs (BDI 14), BDRs, direitos e recibos."""
-    return linha[10:12] == "02" and linha[39:49].lstrip().startswith(("ON", "PN", "UNT"))
+    """Ação ou unit de lote padrão: código BDI 02, espécie ON, PN(A/B...) ou UNT
+    e ticker no padrão de bolsa. Ficam de fora FIIs (BDI 12), ETFs (BDI 14),
+    BDRs, direitos, recibos e papéis de balcão."""
+    return (linha[10:12] == "02" and linha[39:49].lstrip().startswith(("ON", "PN", "UNT"))
+            and bool(TICKER_ACAO.match(linha[12:24].strip())))
 
 
 def ler_registros(caminho_zip: Path, tickers: set[str], desde: date, automaticos: bool = True,
