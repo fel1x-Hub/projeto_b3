@@ -28,7 +28,12 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
 
 ## Configuração do usuário
-- Ativos: lista editável em `config/ativos.csv` (20 ações: os 5 do exemplo + maiores da B3; BOVA11 como benchmark). Para adicionar, incluir linha (com `apelidos` para busca em notícias) e rodar `python scripts/coletar.py`. Feeds de notícias em `config/feeds.csv`.
+- Universo (decisão do usuário, 30/09/2026): **a maior parte da B3**, e não uma lista fixa.
+  - Entram **ações e units** (ON, PN e units em lote padrão). Ficam de fora FIIs, ETFs e BDRs; o BOVA11 fica só como benchmark.
+  - Filtro de liquidez **ponto-no-tempo**: volume financeiro médio ≥ **R$ 100 mil/dia** nos últimos 3 meses, avaliado em cada data. Empresas que saíram da bolsa continuam no histórico, para evitar viés de sobrevivência.
+  - `config/ativos.csv` passa a ser só a lista de exceções (incluir ou excluir à mão).
+  - Em transição: a coleta atual ainda cobre só os 20 papéis iniciais.
+- Feeds de notícias em `config/feeds.csv`.
 - Hardware: 16 GB RAM, GPU Intel UHD integrada (sem CUDA), ~200 GB livres. Sem GPU: sentimento com modelo pronto em CPU ou LLM via API; fine-tuning local inviável.
 - Experiência: intermediário
 - Python: 3.13, ambiente virtual em `.venv`
@@ -84,6 +89,11 @@ Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
 12. **Chat de IA**: o LLM recebe contexto montado pelo backend (ranking, sinais, carteira do usuário, relatório do dia) e responde perguntas. Não tem acesso direto ao banco; o backend é quem prepara o contexto.
 13. **Deploy**: antes de implementar, o Claude deve apresentar as opções gratuitas de hospedagem (backend, banco e frontend) com prós, contras e instruções de credenciais, e esperar escolha do usuário.
 14. **Segredos de produção** (URLs do banco em nuvem, chaves de deploy) ficam em `.env` e nunca no código ou no repositório.
+15. **Sempre atualizado, sem ação do usuário** (requisito do usuário, 30/09/2026). O app e o site nunca são estáticos: mostram cotação, estatísticas, sinais e score do ativo **no momento**, atualizados sozinhos.
+    - Coleta e cálculo rodam agendados na nuvem, não dependem do PC do usuário ligado.
+    - Durante o pregão há atualização intradiária, com a frequência que a fonte gratuita permitir (cotação gratuita costuma ter ~15 min de atraso). Os valores intradiários aparecem marcados como **provisórios**. Depois do fechamento, os dados oficiais da B3 os substituem.
+    - A interface se atualiza sozinha (polling ou SSE), mostrando "atualizado às HH:MM" e se o mercado está aberto ou fechado.
+    - Se uma fonte falhar, a tela mostra o último dado válido com a hora dele. Nunca mostra um dado velho como se fosse atual.
 
 ## Comandos
 (preencher conforme o projeto evolui)

@@ -280,3 +280,26 @@ CREATE TABLE llm_erros (
     {_ts("ocorrido_em")}
 );
 """
+
+
+SCHEMA_V5 = f"""
+-- Universo ampliado (decisão de 30/09/2026): a maior parte da B3.
+-- origem: 'manual' = veio de config/ativos.csv (lista de exceções);
+--         'auto'   = detectado nos arquivos da B3 (ação ou unit em lote padrão).
+ALTER TABLE ativos ADD COLUMN origem TEXT NOT NULL DEFAULT 'manual' CHECK (origem IN ('manual', 'auto'));
+
+-- Universo ponto-no-tempo: quem estava apto a entrar no ranking em cada pregão.
+-- Critério: volume financeiro médio >= R$ 100 mil/dia nos últimos 63 pregões
+-- do mercado (dia sem negócio conta como zero), usando só dados até o corte
+-- do dia; ou inclusão manual pelo ativos.csv. Empresas que saíram da bolsa
+-- continuam no histórico (sem viés de sobrevivência).
+CREATE TABLE universo (
+    {_data("data")},
+    ticker          TEXT NOT NULL REFERENCES ativos (ticker),
+    volume_medio    REAL,
+    motivo          TEXT NOT NULL CHECK (motivo IN ('liquidez', 'manual')),
+    {_ts("disponivel_em")},
+    PRIMARY KEY (data, ticker)
+);
+CREATE INDEX idx_universo_ticker ON universo (ticker, data);
+"""

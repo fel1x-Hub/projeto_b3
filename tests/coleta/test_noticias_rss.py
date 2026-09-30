@@ -95,3 +95,21 @@ def test_resumo_cortado():
 
 def test_feeds_do_projeto():
     assert {f["nome"] for f in rss.carregar_feeds()} == {"infomoney", "moneytimes", "exame", "valor"}
+
+
+def test_termos_de_papeis_automaticos():
+    assert rss.termos_automaticos("PETROBRAS") == ["Petrobras"]
+    assert rss.termos_automaticos("VALE") == []            # curto e ambíguo: só o ticker
+    assert rss.termos_automaticos("LIGHT S/A") == []       # não alfabético
+    assert rss.termos_automaticos("MINERVA") == []         # palavra comum
+
+
+def test_papel_automatico_associa_por_nome_e_ticker(conn_rss):
+    from src.db.ativos import registrar_automaticos
+    registrar_automaticos(conn_rss, {"SAPR11": "SANEPAR", "VAMO3": "VAMOS"})
+    feed = _feed(_item("Sanepar aprova reajuste", "https://s/1", "Tue, 29 Sep 2026 10:00:00 +0000"),
+                 _item("Vamos às urnas", "https://s/2", "Tue, 29 Sep 2026 11:00:00 +0000"))
+    rss.coletar(conn_rss, http=HTTPFalso({"feed/teste": feed}), feeds=FEEDS)
+    assoc = {(r["ticker"], r["metodo"]) for r in conn_rss.execute("SELECT * FROM noticias_ativos")}
+    assert ("SAPR11", "nome_no_texto") in assoc
+    assert not any(t == "VAMO3" for t, _ in assoc)          # "Vamos" é verbo: está na lista de ambíguos

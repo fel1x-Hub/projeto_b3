@@ -1,4 +1,12 @@
-"""Sincronização da tabela `ativos` com a lista em config/ativos.csv."""
+"""Sincronização da tabela `ativos` com config/ativos.csv (lista de EXCEÇÕES).
+
+O universo é detectado automaticamente nos arquivos da B3 (origem 'auto').
+O CSV só registra exceções (origem 'manual'):
+- linha com ativo = 1: papel incluído à força (entra no universo mesmo sem liquidez);
+- linha com ativo = 0: papel excluído;
+- papel que sai do CSV deixa de ser exceção e volta ao critério automático
+  (origem 'auto'); nunca é apagado nem desativado por isso.
+"""
 
 import logging
 import sqlite3
@@ -9,18 +17,14 @@ logger = logging.getLogger(__name__)
 
 
 def sincronizar_ativos(conn: sqlite3.Connection, ativos: list[dict]) -> dict[str, int]:
-    """Faz upsert dos ativos da lista e desativa os que saíram dela.
+    """Faz upsert das exceções do CSV e devolve ao automático as que saíram dele.
 
-    - Ticker novo: inserido.
-    - Ticker existente com dados diferentes: atualizado. Um CNPJ vazio no CSV
-      não apaga o que já estiver no banco (a etapa 2 preenche via CVM).
-    - Ticker no banco que não está na lista: vira ativo = 0 (nunca é apagado).
-
-    Devolve contagens {inseridos, atualizados, desativados}; rodar de novo com a
+    Um CNPJ vazio no CSV não apaga o que já estiver no banco (a coleta CVM
+    preenche). Devolve {inseridos, atualizados, liberados}; rodar de novo com a
     mesma lista devolve tudo zero.
     """
     agora = agora_utc_iso()
-    contagem = {"inseridos": 0, "atualizados": 0, "desativados": 0}
+    contagem = {"inseridos": 0, "atualizados": 0, "liberados": 0}
     tickers = [a["ticker"] for a in ativos]
 
     with conn:
@@ -29,8 +33,8 @@ def sincronizar_ativos(conn: sqlite3.Connection, ativos: list[dict]) -> dict[str
             dados = {"apelidos": None, "tipo": "acao", **a, "agora": agora}
             cur = conn.execute(
                 """
-                INSERT INTO ativos (ticker, nome, setor, cnpj, ativo, apelidos, tipo, criado_em, atualizado_em)
-                VALUES (:ticker, :nome, :setor, :cnpj, :ativo, :apelidos, :tipo, :agora, :agora)
+                INSERT INTO ativos (ticker, nome, setor, cnpj, ativo, apelidos, tipo, origem, criado_em, atualizado_em)
+                VALUES (:ticker, :nome, :setor, :cnpj, :ativo, :apelidos, :tipo, 'manual', :agora, :agora)
                 ON CONFLICT (ticker) DO UPDATE SET
                     nome = excluded.nome,
                     setor = excluded.setor,
@@ -38,6 +42,7 @@ def sincronizar_ativos(conn: sqlite3.Connection, ativos: list[dict]) -> dict[str
                     ativo = excluded.ativo,
                     apelidos = excluded.apelidos,
                     tipo = excluded.tipo,
+                    origem = 'manual',
                     atualizado_em = excluded.atualizado_em
                 WHERE ativos.nome IS NOT excluded.nome
                    OR ativos.setor IS NOT excluded.setor
@@ -45,6 +50,7 @@ def sincronizar_ativos(conn: sqlite3.Connection, ativos: list[dict]) -> dict[str
                    OR ativos.ativo IS NOT excluded.ativo
                    OR ativos.apelidos IS NOT excluded.apelidos
                    OR ativos.tipo IS NOT excluded.tipo
+                   OR ativos.origem IS NOT 'manual'
                 """,
                 dados,
             )
@@ -53,15 +59,32 @@ def sincronizar_ativos(conn: sqlite3.Connection, ativos: list[dict]) -> dict[str
 
         marcadores = ",".join("?" * len(tickers))
         cur = conn.execute(
-            f"UPDATE ativos SET ativo = 0, atualizado_em = ? "
-            f"WHERE ativo = 1 AND ticker NOT IN ({marcadores})",
+            f"UPDATE ativos SET origem = 'auto', ativo = 1, atualizado_em = ? "
+            f"WHERE origem = 'manual' AND ticker NOT IN ({marcadores})",
             [agora, *tickers],
         )
-        contagem["desativados"] = cur.rowcount
+        contagem["liberados"] = cur.rowcount
 
     logger.info(
-        "Ativos sincronizados: %(inseridos)d inseridos, %(atualizados)d atualizados, "
-        "%(desativados)d desativados",
+        "Exceções do ativos.csv: %(inseridos)d inseridas, %(atualizados)d atualizadas, "
+        "%(liberados)d devolvidas ao critério automático",
         contagem,
     )
     return contagem
+
+
+def registrar_automaticos(conn: sqlite3.Connection, papeis: dict[str, str]) -> int:
+    """Cadastra papéis detectados nos arquivos da B3 ({ticker: nome resumido}).
+    Não altera papéis já cadastrados (inclusive exceções manuais)."""
+    agora = agora_utc_iso()
+    with conn:
+        antes = conn.total_changes
+        conn.executemany(
+            "INSERT OR IGNORE INTO ativos (ticker, nome, ativo, tipo, origem, criado_em, atualizado_em) "
+            "VALUES (?, ?, 1, 'acao', 'auto', ?, ?)",
+            [(t, n or t, agora, agora) for t, n in papeis.items()],
+        )
+        novos = conn.total_changes - antes
+    if novos:
+        logger.info("%d papéis novos detectados na B3", novos)
+    return novos

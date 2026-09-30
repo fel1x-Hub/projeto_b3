@@ -23,6 +23,7 @@ DRE = CAB_DRE + "".join([
     f"{CNPJ};{ANO}-03-31;2;P;009512;DRE;REAL;MIL;ÚLTIMO;{ANO}-01-01;{ANO}-03-31;3.11;Lucro Líquido;32761000.0;S\n",  # repetida
     f"{CNPJ};{ANO}-03-31;2;P;009512;DRE;REAL;MIL;PENÚLTIMO;{ANO-1}-01-01;{ANO-1}-03-31;3.11;Lucro Líquido;35331000.0;S\n",
     f"99.999.999/0001-99;{ANO}-03-31;1;O;001234;DRE;REAL;UNIDADE;ÚLTIMO;{ANO}-01-01;{ANO}-03-31;3.11;Lucro;5.0;S\n",
+    f"{CNPJ};{ANO}-03-31;2;P;009512;DRE;REAL;MIL;ÚLTIMO;{ANO}-01-01;{ANO}-03-31;3.11.01.01;Detalhe;1.0;N\n",  # 4º nível: descartado
 ])
 BPA = ("CNPJ_CIA;DT_REFER;VERSAO;DENOM_CIA;CD_CVM;GRUPO_DFP;MOEDA;ESCALA_MOEDA;ORDEM_EXERC;"
        "DT_FIM_EXERC;CD_CONTA;DS_CONTA;VL_CONTA;ST_CONTA_FIXA\n"
@@ -40,6 +41,7 @@ def _zip_itr():
             f"itr_cia_aberta_DRE_con_{ANO}.csv": DRE,
             f"itr_cia_aberta_BPA_con_{ANO}.csv": BPA,
             f"itr_cia_aberta_composicao_capital_{ANO}.csv": CAPITAL,
+            f"itr_cia_aberta_DFC_MI_con_{ANO}.csv": DRE,  # fluxo de caixa: não é mais guardado
         }.items():
             z.writestr(nome, conteudo.encode("latin-1"))
     return buf.getvalue()

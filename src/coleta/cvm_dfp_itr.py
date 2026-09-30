@@ -12,7 +12,9 @@ demonstrativo e a composição do capital (número de ações).
   quando sai e a v2 entra depois sem apagar a v1: o ponto-no-tempo se acumula.
 - `valor` em reais: VL_CONTA x 1000 quando ESCALA_MOEDA = MIL.
 - `disponivel_em` = DT_RECEB (entrega) às 23:59:59 BRT (só há a data).
-- DMPL e DRA ficam de fora (formato em colunas / não usados nos indicadores).
+- Só BPA, BPP, DRE e DVA até o 3º nível de conta (o que os indicadores usam);
+  DFC, DMPL e DRA ficam de fora. Com ~400 empresas, guardar tudo passaria de
+  2 GB e não caberia no banco gratuito da etapa 8.
 
 Uma versão entregue nunca muda (correção = versão nova); por isso um documento
 já presente no banco é pulado inteiro, e documentos novos são inseridos em lote.
@@ -30,7 +32,9 @@ from src.db.tempo import agora_utc_iso, hoje_brt, iso_brt
 logger = logging.getLogger(__name__)
 
 FONTE = "cvm_dfp_itr"
-DEMONSTRATIVOS = ("BPA", "BPP", "DRE", "DFC_MD", "DFC_MI", "DVA")
+# só o que os indicadores usam (ver src/sinais/fundamentalistas.py); DFC e DMPL ficam de fora
+DEMONSTRATIVOS = ("BPA", "BPP", "DRE", "DVA")
+NIVEL_MAXIMO = 3  # ex.: 3.11.01; contas mais detalhadas não são usadas
 ESCALAS = {"MIL": 1000.0, "UNIDADE": 1.0}
 COLUNAS_CAPITAL = {
     "QT_ACAO_ORDIN_CAP_INTEGR": "Ações ordinárias (capital integralizado)",
@@ -67,6 +71,8 @@ def _linhas_demonstrativo(linhas, tipo_doc, demonstrativo, consolidado, docs_nov
     registros = []
     for r in linhas:
         if not r["ORDEM_EXERC"].startswith("Ú"):  # ÚLTIMO; PENÚLTIMO é comparativo
+            continue
+        if r["CD_CONTA"].count(".") + 1 > NIVEL_MAXIMO:
             continue
         doc = (cvm_comum.normalizar_codigo_cvm(r["CD_CVM"]), tipo_doc, r["DT_REFER"], int(r["VERSAO"]))
         if doc not in docs_novos:

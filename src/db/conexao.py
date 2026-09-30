@@ -19,7 +19,9 @@ def conectar(caminho: Path | str | None = None) -> sqlite3.Connection:
     """
     caminho = Path(caminho) if caminho else settings.DB_PATH
     caminho.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(caminho)
+    # espera até 60 s se outra conexão estiver escrevendo (ex.: coleta e extração
+    # de eventos rodando ao mesmo tempo), em vez de falhar com 'database is locked'
+    conn = sqlite3.connect(caminho, timeout=60)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")

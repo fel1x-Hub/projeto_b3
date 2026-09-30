@@ -22,7 +22,7 @@ from config import settings  # noqa: E402
 from src.db.conexao import conectar  # noqa: E402
 from src.db.migracoes import migrar  # noqa: E402
 from src.logging_config import configurar_logging  # noqa: E402
-from src.sinais import base, cobertura, eventos, fundamentalistas, sentimento, tecnicos  # noqa: E402
+from src.sinais import base, cobertura, eventos, fundamentalistas, sentimento, tecnicos, universo  # noqa: E402
 
 logger = logging.getLogger("gerar_sinais")
 
@@ -46,6 +46,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         migrar(conn)
         if not args.so_cobertura:
+            if args.familia == "todas":
+                universo.gravar(conn, universo.calcular(conn))  # quem está apto ao ranking em cada data
             for nome, modulo in FAMILIAS.items():
                 if args.familia not in ("todas", nome):
                     continue

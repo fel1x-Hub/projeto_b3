@@ -91,12 +91,35 @@ def disponibilidade(publicado: datetime | None, agora: datetime) -> str:
     return para_iso_utc(publicado)
 
 
-def _padroes_ativos(conn: sqlite3.Connection) -> list[tuple[str, re.Pattern, re.Pattern]]:
+# nomes resumidos da B3 que são palavras comuns: nesses, só o ticker identifica a empresa
+# (lista incremental: acrescente aqui quando aparecer associação errada)
+NOMES_AMBIGUOS = {"Vale", "Light", "Brasil", "Banco", "Energia", "Minerva", "Natura", "Positivo", "Record",
+                  "Vamos", "Tenda", "Movida", "Porto Seguro", "Pague Menos", "Mercado", "Aliança", "Oceana"}
+
+
+def termos_automaticos(nome: str) -> list[str]:
+    """Termo de busca para papel detectado automaticamente: o nome resumido da
+    B3 com grafia normal ("PETROBRAS" -> "Petrobras"), se tiver 5+ letras e não
+    for ambíguo. Limitação: nomes abreviados ("ITAUUNIBANCO") não casam com o
+    texto das notícias; nesses casos só o ticker associa a notícia."""
+    termo = (nome or "").strip().title()
+    if len(termo) < 5 or not termo.replace(" ", "").isalpha() or termo in NOMES_AMBIGUOS:
+        return []
+    return [termo]
+
+
+def _padroes_ativos(conn: sqlite3.Connection) -> list[tuple[str, re.Pattern, re.Pattern | None]]:
+    def compilar(lista):
+        return re.compile(r"(?<!\w)(?:" + "|".join(re.escape(t) for t in lista) + r")(?!\w)") if lista else None
+
     padroes = []
-    for r in conn.execute("SELECT ticker, nome, apelidos FROM ativos WHERE ativo = 1 AND tipo = 'acao'"):
-        termos = [t for t in (r["apelidos"] or r["nome"]).split("|") if t]
-        def compilar(lista):
-            return re.compile(r"(?<!\w)(?:" + "|".join(re.escape(t) for t in lista) + r")(?!\w)")
+    for r in conn.execute("SELECT ticker, nome, apelidos, origem FROM ativos WHERE ativo = 1 AND tipo = 'acao'"):
+        if r["apelidos"]:
+            termos = [t for t in r["apelidos"].split("|") if t]
+        elif r["origem"] == "auto":
+            termos = termos_automaticos(r["nome"])
+        else:
+            termos = [r["nome"]]
         padroes.append((r["ticker"], compilar([r["ticker"]]), compilar(termos)))
     return padroes
 
@@ -107,7 +130,7 @@ def associar(texto: str, padroes) -> list[tuple[str, str]]:
     for ticker, por_ticker, por_nome in padroes:
         if por_ticker.search(texto):
             achados.append((ticker, "ticker_no_texto"))
-        elif por_nome.search(texto):
+        elif por_nome is not None and por_nome.search(texto):
             achados.append((ticker, "nome_no_texto"))
     return achados
 

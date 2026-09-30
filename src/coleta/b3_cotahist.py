@@ -25,6 +25,7 @@ from config import settings
 from src.coleta.cliente_http import ClienteHTTP, NaoEncontrado
 from src.coleta.execucao import ColetaParcial
 from src.coleta.persistencia import salvar
+from src.db.ativos import registrar_automaticos
 from src.db.tempo import hoje_brt, iso_brt
 
 logger = logging.getLogger(__name__)
@@ -95,8 +96,18 @@ def _subdividir(arq: Arquivo) -> list[Arquivo]:
     return []
 
 
-def ler_registros(caminho_zip: Path, tickers: set[str], desde: date) -> list[dict]:
-    """Extrai as linhas de mercado à vista dos `tickers` a partir de `desde`."""
+def eh_acao(linha: str) -> bool:
+    """Ação ou unit de lote padrão: código BDI 02 e espécie ON, PN(A/B...) ou UNT.
+    Ficam de fora FIIs (BDI 12), ETFs (BDI 14), BDRs, direitos e recibos."""
+    return linha[10:12] == "02" and linha[39:49].lstrip().startswith(("ON", "PN", "UNT"))
+
+
+def ler_registros(caminho_zip: Path, tickers: set[str], desde: date, automaticos: bool = True,
+                  excluidos: frozenset[str] = frozenset(), detectados: dict | None = None) -> list[dict]:
+    """Extrai as linhas de mercado à vista a partir de `desde`: dos `tickers`
+    pedidos e, se `automaticos`, de toda ação/unit em lote padrão (menos os
+    `excluidos`). Papéis automáticos encontrados vão para `detectados`
+    ({ticker: nome resumido})."""
     registros = []
     with zipfile.ZipFile(caminho_zip) as z:
         with z.open(z.namelist()[0]) as bruto:
@@ -104,8 +115,13 @@ def ler_registros(caminho_zip: Path, tickers: set[str], desde: date) -> list[dic
                 if linha[:2] != "01" or linha[24:27] != MERCADO_A_VISTA:
                     continue
                 ticker = linha[12:24].strip()
-                if ticker not in tickers:
+                if ticker in excluidos:
                     continue
+                if ticker not in tickers:
+                    if not (automaticos and eh_acao(linha)):
+                        continue
+                    if detectados is not None:
+                        detectados.setdefault(ticker, linha[27:39].strip())
                 dia = date(int(linha[2:6]), int(linha[6:8]), int(linha[8:10]))
                 if dia < desde:
                     continue
@@ -140,12 +156,31 @@ def _inicio_incremental(conn: sqlite3.Connection, tickers: list[str], desde: dat
     return min(inicios)
 
 
-def coletar(conn: sqlite3.Connection, desde: date, http: ClienteHTTP | None = None) -> int:
+def _inicio(conn: sqlite3.Connection, manuais: list[str], desde: date) -> date:
+    """Primeiro dia a coletar.
+    - Primeira coleta do universo automático (nenhum papel 'auto' ainda):
+      reprocessa desde `desde` (os arquivos antigos já estão em cache).
+    - Depois: dia seguinte ao último pregão salvo, ou antes, se uma exceção
+      manual nova ainda não tiver dados."""
+    if not conn.execute("SELECT 1 FROM ativos WHERE origem = 'auto' LIMIT 1").fetchone():
+        return desde
+    ultimo = conn.execute("SELECT MAX(data) FROM cotacoes WHERE fonte = ?", (FONTE,)).fetchone()[0]
+    inicio = max(desde, date.fromisoformat(ultimo) + timedelta(days=1)) if ultimo else desde
+    return min([inicio, _inicio_incremental(conn, manuais, desde)] if manuais else [inicio])
+
+
+def coletar(conn: sqlite3.Connection, desde: date, http: ClienteHTTP | None = None,
+            automaticos: bool = True) -> int:
+    """Coleta cotações de todas as ações/units da B3 (universo automático) e
+    das exceções manuais do ativos.csv (ex.: BOVA11). Papéis novos são
+    cadastrados na tabela `ativos` com origem 'auto'."""
     http = http or ClienteHTTP()
-    tickers = [r[0] for r in conn.execute("SELECT ticker FROM ativos WHERE ativo = 1 ORDER BY ticker")]
-    if not tickers:
+    tickers = [r[0] for r in conn.execute(
+        "SELECT ticker FROM ativos WHERE ativo = 1 AND origem = 'manual' ORDER BY ticker")]
+    excluidos = frozenset(r[0] for r in conn.execute("SELECT ticker FROM ativos WHERE ativo = 0"))
+    if not tickers and not automaticos:
         return 0
-    inicio = _inicio_incremental(conn, tickers, desde)
+    inicio = _inicio(conn, tickers, desde) if automaticos else _inicio_incremental(conn, tickers, desde)
     fila = planejar(inicio, hoje_brt())
     logger.info("B3: %d arquivo(s) a partir de %s", len(fila), inicio)
 
@@ -162,11 +197,14 @@ def coletar(conn: sqlite3.Connection, desde: date, http: ClienteHTTP | None = No
                 logger.debug("%s não existe (feriado ou ainda não publicado)", arq.nome)
             fila = menores + fila
             continue
-        registros = ler_registros(caminho, set(tickers), inicio)
+        detectados: dict[str, str] = {}
+        registros = ler_registros(caminho, set(tickers), inicio, automaticos, excluidos, detectados)
+        registrar_automaticos(conn, detectados)  # antes de salvar: cotacoes tem FK para ativos
         novos += salvar(conn, "cotacoes", CHAVES, registros, fonte=FONTE).novos
+        logger.info("%s: %d linhas lidas", arq.nome, len(registros))
 
     sem_dados = [r[0] for r in conn.execute(
-        f"SELECT ticker FROM ativos WHERE ativo = 1 AND ticker NOT IN "
+        f"SELECT ticker FROM ativos WHERE ativo = 1 AND origem = 'manual' AND ticker NOT IN "
         f"(SELECT DISTINCT ticker FROM cotacoes WHERE fonte = ?)", (FONTE,)
     )]
     if sem_dados:

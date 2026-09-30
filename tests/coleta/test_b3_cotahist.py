@@ -50,7 +50,7 @@ def test_planejar_nada_quando_em_dia():
 def test_ler_registros_da_amostra_real(tmp_path):
     caminho = tmp_path / "d.zip"
     caminho.write_bytes(_arquivo(*AMOSTRA.splitlines(keepends=True)[1:-1]))
-    regs = {r["ticker"]: r for r in ler_registros(caminho, {"PETR4", "BOVA11"}, date(2026, 1, 1))}
+    regs = {r["ticker"]: r for r in ler_registros(caminho, {"PETR4", "BOVA11"}, date(2026, 1, 1), automaticos=False)}
     assert set(regs) == {"PETR4", "BOVA11"}  # VALE3 fora da lista; PETR4F é fracionário
     p = regs["PETR4"]
     assert (p["data"], p["abertura"], p["maxima"], p["minima"], p["fechamento"], p["volume"]) == \
@@ -117,6 +117,32 @@ def test_ticker_sem_cotacao_e_coleta_parcial(conn_b3):
     with pytest.raises(ColetaParcial, match="XPTO3") as e:
         b3_cotahist.coletar(conn_b3, date(2026, 9, 24), http=_http_semana())
     assert e.value.novos == 6
+
+
+def test_universo_automatico_detecta_acoes_e_respeita_excecoes(conn_vazia, raw_tmp, monkeypatch):
+    from src.db.migracoes import migrar
+    migrar(conn_vazia)
+    monkeypatch.setattr(b3_cotahist, "hoje_brt", lambda: date(2026, 9, 25))
+    sincronizar_ativos(conn_vazia, [
+        {"ticker": "BOVA11", "nome": "ETF", "setor": None, "cnpj": None, "ativo": 1, "tipo": "benchmark"},
+        {"ticker": "VALE3", "nome": "Vale", "setor": None, "cnpj": None, "ativo": 0},  # excluída à mão
+    ])
+    http = HTTPFalso({"COTAHIST_D25092026": _arquivo(*AMOSTRA.splitlines(keepends=True)[1:-1])})
+    assert b3_cotahist.coletar(conn_vazia, date(2026, 9, 25), http=http) == 2
+    ativos = {r["ticker"]: (r["origem"], r["nome"]) for r in conn_vazia.execute("SELECT * FROM ativos")}
+    assert ativos["PETR4"] == ("auto", "PETROBRAS")          # ação detectada e cadastrada sozinha
+    cotados = {r[0] for r in conn_vazia.execute("SELECT ticker FROM cotacoes")}
+    assert cotados == {"PETR4", "BOVA11"}                     # ETF só por ser exceção manual; VALE3 excluída
+
+
+def test_eh_acao_filtra_especie_e_bdi():
+    petr, bova = _linha("PETR4"), _linha("BOVA11")
+    assert b3_cotahist.eh_acao(petr)
+    assert not b3_cotahist.eh_acao(bova)                                  # ETF (BDI 14)
+    bdr = petr[:39] + "DRN       " + petr[49:]
+    assert not b3_cotahist.eh_acao(bdr)                                    # BDR
+    unit = petr[:39] + "UNT     N2" + petr[49:]
+    assert b3_cotahist.eh_acao(unit)
 
 
 def test_arquivo_anual_tem_nome_certo():

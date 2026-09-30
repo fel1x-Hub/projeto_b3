@@ -75,7 +75,12 @@ def coletar(
     buscar: Callable[[str], pd.DataFrame] = _buscar_yahoo,
     pausa: float = PAUSA_ENTRE_TICKERS,
 ) -> int:
-    tickers = [r[0] for r in conn.execute("SELECT ticker FROM ativos WHERE ativo = 1 ORDER BY ticker")]
+    # exceções manuais + papéis negociados recentemente (empresas que saíram da
+    # bolsa em geral não existem mais no Yahoo; ~400 chamadas por execução)
+    tickers = [r[0] for r in conn.execute(
+        "SELECT a.ticker FROM ativos a WHERE a.ativo = 1 AND (a.origem = 'manual' OR EXISTS ("
+        "SELECT 1 FROM cotacoes c WHERE c.ticker = a.ticker AND c.data >= date('now', '-45 days'))) "
+        "ORDER BY a.ticker")]
     novos, falhas = 0, []
     for i, ticker in enumerate(tickers):
         if i and pausa:

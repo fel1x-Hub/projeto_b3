@@ -8,13 +8,13 @@ TABELAS = {
     "ativos", "cotacoes", "macro", "noticias", "noticias_ativos",
     "documentos", "execucoes_coleta", "revisoes", "schema_versao",
     "proventos", "demonstracoes",
-    "sinais", "sentimento_noticias", "eventos_documentos", "llm_cache", "llm_erros",
+    "sinais", "sentimento_noticias", "eventos_documentos", "llm_cache", "llm_erros", "universo",
 }
 INDICES = {
     "idx_noticias_disponivel_em", "idx_noticias_ativos_ticker",
     "idx_documentos_ticker_disponivel", "idx_execucoes_fonte_inicio",
     "uq_demonstracoes", "idx_demonstracoes_documento", "idx_demonstracoes_cia_disponivel",
-    "idx_sinais_nome_data",
+    "idx_sinais_nome_data", "idx_universo_ticker",
 }
 
 
