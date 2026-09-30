@@ -61,6 +61,11 @@ Etapa 7 concluída e funcionando localmente.
 5. HTTPS é obrigatório; todos os serviços listados fornecem gratuitamente.
 
 ## 8.5 Aplicativo desktop (.exe)
+
+> **Decisão do usuário (30/09/2026): o desktop será em Qt (PySide6), não em Electron.** O texto abaixo vale como referência de requisitos, trocando o que é Electron:
+> - o app Qt consome a API (na nuvem, ou local se a nuvem estiver fora do ar), mostra um aviso claro quando nenhuma API responde e se atualiza sozinho (`QTimer`);
+> - o instalador `.exe` é gerado com PyInstaller;
+> - para atualização automática do app, avaliar distribuir as versões pelo GitHub Releases, que é gratuito.
 Usar **Electron** empacotando o mesmo frontend React. O app desktop se conecta à API local (quando o backend está rodando na máquina) ou à API em nuvem.
 
 1. Configurar `frontend/electron/` com `main.js` mínimo (abre janela, carrega o React).

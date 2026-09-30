@@ -27,6 +27,8 @@ Regras:
 - Swagger automático do FastAPI serve como documentação; manter atualizado.
 
 ## 7.2 Dashboard (React + Recharts + Tailwind)
+
+> **Decisão do usuário (30/09/2026):** além do site em React, há um **app desktop em Qt (PySide6)** com as mesmas telas, consumindo a mesma API. Gráficos no Qt: QtCharts ou pyqtgraph.
 Telas mínimas:
 
 **Visão geral do mercado**

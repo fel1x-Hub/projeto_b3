@@ -81,6 +81,10 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Agendador contínuo: ciclo de ~15 min no pregão (cotação, notícias, sinais e score provisórios) e pipeline completo depois do arquivo da B3 (~21h).
 
 **Etapa 7 — interface (regra 15: sempre atualizada)**
+- Duas interfaces sobre a MESMA API: **site em React** e **app desktop em Qt (PySide6)**.
+  - As duas se atualizam sozinhas: polling curto ou SSE no site; `QTimer` no Qt.
+  - Mostram "atualizado às HH:MM" e o selo de provisório.
+  - Começar pela API e pelo app Qt, que o usuário vai usar no dia a dia; depois o site.
 - API FastAPI com `atualizado_em` em cada resposta.
 - React com telas que se atualizam sozinhas: mercado, ranking, detalhe da ação ao vivo, relatório, carteira e chat. Selo de provisório no que é intradiário.
 - Carteira real (regra 16): integração pelo **Meu Pluggy** (Open Finance, grátis para uso pessoal).
@@ -97,7 +101,7 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - 🙋 Hospedagem de backend, banco e frontend (apresentar opções, regra 13). O usuário cria as contas.
 - Banco hoje com ~2 milhões de linhas: medir depois do enxugamento e comparar com os limites gratuitos.
 - Sentimento na nuvem: o torch (~1 GB) pode não caber; alternativa é o Gemini.
-- Agendamentos na nuvem (ex.: GitHub Actions) e `.exe` com Electron.
+- Agendamentos na nuvem (ex.: GitHub Actions). `.exe` do app Qt empacotado com PyInstaller.
 
 ## Stack
 - Python 3.11+
@@ -105,7 +109,9 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - pandas, requests, python-dotenv, pytest
 - Backend da interface: FastAPI (serve a web e o desktop com a mesma API)
 - Frontend: React + Recharts (dashboards) + Tailwind CSS
-- Desktop: Electron empacotando o frontend React (gera .exe no Windows)
+- Desktop: **Qt (PySide6)**, app nativo em Python que consome a mesma API FastAPI do site e é empacotado em .exe com PyInstaller. Decisão do usuário (30/09/2026) no lugar do Electron.
+  - Consequência: as telas do site (React) e do app (Qt) são feitas separadamente.
+  - Dados, ranking, explicações e regras de negócio ficam **só na API**, nunca duplicados nas interfaces.
 - Demais dependências são definidas em cada etapa
 
 ## Estrutura de pastas (alvo)
@@ -122,9 +128,9 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 │   ├── validacao/     # backtest e paper trading
 │   ├── relatorio/     # geração do relatório diário
 │   └── api/           # FastAPI: endpoints usados pela interface web e desktop
-├── frontend/          # React app (dashboard, chat, carteira)
+├── frontend/          # site: React app (dashboard, chat, carteira)
 │   ├── src/
-│   └── electron/      # wrapper Electron para gerar .exe
+├── desktop/           # app Qt (PySide6): telas nativas que consomem a API; .exe via PyInstaller
 ├── scripts/           # pontos de entrada (rodar coleta, gerar ranking...)
 ├── tests/
 ├── data/              # banco SQLite (fora do git)
@@ -179,4 +185,4 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Testes: `pytest`
 - Dev local (backend): `uvicorn src.api.main:app --reload`
 - Dev local (frontend): `cd frontend && npm run dev`
-- Build desktop (.exe): `cd frontend && npm run build && npm run electron:build`
+- App desktop (Qt): `python desktop/main.py` · build .exe: `pyinstaller desktop/app.spec` (a definir na etapa 7/8)
