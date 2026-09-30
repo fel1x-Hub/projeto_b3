@@ -130,3 +130,17 @@ def test_alta_de_mais_de_3x_sem_evento_e_neutralizada():
     # TRAD3 real: +665% num dia (grupamento com razão distorcida)
     cot = _cot(["2024-07-19", "2024-07-22"], [1.00, 7.65])
     assert retornos_totais(cot, _prov()).iloc[1] == 0.0
+
+
+def test_gravar_incremental_preserva_historico(conn_precos):
+    conn_precos, dias = conn_precos
+    sinais = tecnicos.calcular(conn_precos)
+    base.gravar(conn_precos, sinais, tecnicos.VERSOES)
+    antigo = conn_precos.execute("SELECT calculado_em FROM sinais WHERE data = ? LIMIT 1", (dias[100].isoformat(),)).fetchone()[0]
+    total = conn_precos.execute("SELECT COUNT(*) FROM sinais").fetchone()[0]
+    import time as _t; _t.sleep(1.1)
+    n = base.gravar(conn_precos, sinais, tecnicos.VERSOES, desde=dias[300])
+    assert n == len(sinais[sinais["data"] >= pd.Timestamp(dias[300])].dropna())
+    assert conn_precos.execute("SELECT COUNT(*) FROM sinais").fetchone()[0] == total          # nada perdido
+    assert conn_precos.execute("SELECT calculado_em FROM sinais WHERE data = ? LIMIT 1",
+                               (dias[100].isoformat(),)).fetchone()[0] == antigo            # antigo intacto

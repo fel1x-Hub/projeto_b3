@@ -46,12 +46,16 @@ def carregar_proventos(conn: sqlite3.Connection, ate: str | None = None) -> pd.D
     return df
 
 
-def gravar(conn: sqlite3.Connection, sinais: pd.DataFrame, versoes: dict[str, int]) -> int:
-    """Substitui, para cada nome de sinal em `versoes`, todas as linhas daquela
-    versão pelas de `sinais` (colunas: ticker, data, nome, valor).
+def gravar(conn: sqlite3.Connection, sinais: pd.DataFrame, versoes: dict[str, int],
+           desde: date | None = None) -> int:
+    """Substitui, para cada nome de sinal em `versoes`, as linhas daquela versão
+    pelas de `sinais` (colunas: ticker, data, nome, valor). Com `desde`, só as
+    datas a partir dela (gravação incremental: o histórico antigo fica intacto).
     Recalcular é idempotente: rodar duas vezes dá o mesmo resultado."""
     sinais = sinais.dropna(subset=["valor"])
     sinais = sinais[sinais["nome"].isin(versoes)]
+    if desde is not None:
+        sinais = sinais[sinais["data"] >= pd.Timestamp(desde)]
     agora = agora_utc_iso()
     linhas = [
         (r.ticker, r.data.date().isoformat(), r.nome, float(r.valor), versoes[r.nome],
@@ -60,7 +64,11 @@ def gravar(conn: sqlite3.Connection, sinais: pd.DataFrame, versoes: dict[str, in
     ]
     with conn:
         for nome, versao in versoes.items():
-            conn.execute("DELETE FROM sinais WHERE nome = ? AND versao = ?", (nome, versao))
+            if desde is None:
+                conn.execute("DELETE FROM sinais WHERE nome = ? AND versao = ?", (nome, versao))
+            else:
+                conn.execute("DELETE FROM sinais WHERE nome = ? AND versao = ? AND data >= ?",
+                             (nome, versao, desde.isoformat()))
         conn.executemany(
             "INSERT INTO sinais (ticker, data, nome, valor, versao, disponivel_em, calculado_em) "
             "VALUES (?, ?, ?, ?, ?, ?, ?)", linhas)

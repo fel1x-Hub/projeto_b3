@@ -5,6 +5,7 @@ Uso:
     python scripts/gerar_sinais.py                         # todas as famílias
     python scripts/gerar_sinais.py --familia tecnicos      # só uma
     python scripts/gerar_sinais.py --so-cobertura          # só o relatório
+    python scripts/gerar_sinais.py --desde 2026-09-20      # regrava só a partir da data (rápido)
 
 Recalcular é idempotente: cada família substitui os próprios valores da sua
 versão. Todo sinal da data D usa apenas dados com disponivel_em <= D 19h BRT.
@@ -14,6 +15,7 @@ import argparse
 import logging
 import sys
 import time
+from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -38,6 +40,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--familia", choices=["todas", *FAMILIAS], default="todas")
     parser.add_argument("--so-cobertura", action="store_true")
+    parser.add_argument("--desde", type=date.fromisoformat, default=None,
+                        help="grava só a partir desta data (AAAA-MM-DD); o cálculo usa todo o histórico")
     parser.add_argument("--db", type=Path, default=None, help=f"arquivo do banco (padrão: {settings.DB_PATH})")
     args = parser.parse_args(argv)
 
@@ -54,7 +58,7 @@ def main(argv: list[str] | None = None) -> int:
                 inicio = time.monotonic()
                 if nome == "sentimento":
                     sentimento.classificar_pendentes(conn)  # notícias novas ainda sem score
-                n = base.gravar(conn, modulo.calcular(conn), modulo.VERSOES)
+                n = base.gravar(conn, modulo.calcular(conn), modulo.VERSOES, desde=args.desde)
                 logger.info("%s: %d valores em %.0fs", nome, n, time.monotonic() - inicio)
         print(cobertura.relatorio(conn))
     finally:
