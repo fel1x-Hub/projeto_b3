@@ -9,10 +9,10 @@
 
 | Estratégia | Retorno total | ao ano | Volatilidade | Sharpe (sobre CDI) | Queda máxima | Giro anual |
 |---|---|---|---|---|---|---|
-| **Regra principal (top 30, quinzenal, universo todo)** | +43.0% | +9.5% | 16.9% | -0.11 | -24.2% | 9.2x |
-| valor (fund_lp), mesma regra | +57.6% | +12.2% | 17.8% | 0.04 | -25.5% | 3.4x |
-| momentum (ret_63d), mesma regra | +58.4% | +12.4% | 49.0% | 0.16 | -30.5% | 9.7x |
-| aleatório, mesma regra | -16.3% | -4.4% | 23.0% | -0.62 | -34.4% | 22.5x |
+| **Regra principal (top 30, quinzenal, universo todo)** | +58.6% | +12.4% | 17.1% | 0.05 | -23.9% | 9.4x |
+| valor (fund_lp), mesma regra | +58.0% | +12.3% | 17.2% | 0.04 | -25.3% | 3.4x |
+| momentum (ret_63d), mesma regra | -12.5% | -3.3% | 20.6% | -0.66 | -28.6% | 9.8x |
+| aleatório, mesma regra | -30.6% | -8.8% | 20.4% | -0.96 | -38.3% | 22.5x |
 | Ibovespa (BOVA11, comprar e segurar) | +61.1% | +12.8% | 17.1% | 0.07 | -18.8% | nanx |
 | CDI | +62.8% | +13.1% | 0.1% | 0.00 | 0.0% | nanx |
 
@@ -24,7 +24,7 @@
 
 | | 2022 | 2023 | 2024 | 2025 | 2026 |
 |---|---|---|---|---|---|
-| Modelo | -8.8% | +19.7% | -6.3% | +36.3% | +2.5% |
+| Modelo | -11.7% | +28.5% | -4.1% | +38.4% | +5.4% |
 | BOVA11 | -5.7% | +23.1% | -10.1% | +34.7% | +14.6% |
 | CDI | +3.1% | +13.0% | +10.8% | +14.2% | +10.5% |
 
@@ -32,13 +32,13 @@
 
 | Estratégia | Retorno total | ao ano | Volatilidade | Sharpe (sobre CDI) | Queda máxima | Giro anual |
 |---|---|---|---|---|---|---|
-| N = 20 | +42.7% | +9.4% | 17.0% | -0.11 | -25.8% | 10.1x |
-| N = 40 | +48.6% | +10.6% | 16.9% | -0.05 | -22.0% | 8.7x |
-| rebalanceamento semanal (5 pregões) | +30.1% | +6.9% | 16.9% | -0.25 | -24.7% | 14.5x |
-| rebalanceamento mensal (21 pregões) | +80.4% | +16.1% | 16.6% | 0.24 | -20.3% | 6.1x |
-| custos em dobro | +23.3% | +5.5% | 16.9% | -0.33 | -25.4% | 9.2x |
-| só ações ≥ R$ 1 mi/dia | +43.2% | +9.5% | 19.2% | -0.07 | -22.9% | 8.8x |
-| com folga (vende só se sair do top 60) | +53.6% | +11.5% | 16.7% | -0.00 | -25.3% | 4.8x |
-| modelo com eventos | +34.6% | +7.8% | 17.9% | -0.18 | -29.8% | 10.0x |
+| N = 20 | +70.8% | +14.5% | 17.5% | 0.16 | -22.4% | 10.3x |
+| N = 40 | +46.5% | +10.2% | 17.1% | -0.07 | -22.4% | 8.5x |
+| rebalanceamento semanal (5 pregões) | +46.5% | +10.1% | 17.1% | -0.07 | -23.0% | 14.3x |
+| rebalanceamento mensal (21 pregões) | +66.1% | +13.7% | 16.6% | 0.11 | -23.0% | 6.1x |
+| custos em dobro | +36.5% | +8.2% | 17.2% | -0.17 | -25.1% | 9.4x |
+| só ações ≥ R$ 1 mi/dia | +40.3% | +9.0% | 19.3% | -0.10 | -24.2% | 8.9x |
+| com folga (vende só se sair do top 60) | +62.2% | +13.0% | 17.4% | 0.08 | -23.5% | 4.7x |
+| modelo com eventos | +50.6% | +10.9% | 17.7% | -0.02 | -27.1% | 9.9x |
 
 Material de estudo, não recomendação de investimento.

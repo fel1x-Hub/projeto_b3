@@ -31,8 +31,8 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 | 2 | Coleta de dados | [etapas/etapa2.md](etapas/etapa2.md) | ✅ concluída |
 | 3 | Extração de sinais | [etapas/etapa3.md](etapas/etapa3.md) | ✅ concluída |
 | 4 | Modelo de ranking | [etapas/etapa4.md](etapas/etapa4.md) | ✅ concluída |
-| 5 | Backtest e paper trading | [etapas/etapa5.md](etapas/etapa5.md) | 🔨 em andamento |
-| 6 | Relatório diário | [etapas/etapa6.md](etapas/etapa6.md) | ⏳ pendente |
+| 5 | Backtest e paper trading | [etapas/etapa5.md](etapas/etapa5.md) | 🔨 paper trading em andamento (backtest ✅) |
+| 6 | Relatório diário | [etapas/etapa6.md](etapas/etapa6.md) | 🔨 em andamento |
 | 7 | Interface (dashboard + chat IA + carteira) | [etapas/etapa7.md](etapas/etapa7.md) | ⏳ pendente |
 | 8 | Deploy (desktop .exe + web gratuito) | [etapas/etapa8.md](etapas/etapa8.md) | ⏳ pendente |
 
@@ -59,21 +59,21 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
   - Depois, o texto completo, por liquidez. Avança alguns dias pela cota grátis do Gemini e melhora a cobertura de `evt_*` a cada rodada.
 - Sentimento: acumula a partir de 29/09/2026 com a coleta diária. Ainda não tem histórico para o backtest.
 - CVM: 24 tickers pequenos ou extintos seguem sem CNPJ (ver alerta do `coletar.py`). Para resolver, acrescente-os em `config/cnpj_manual.csv`, com a fonte.
-- Tamanho do banco: medir o que ocupa espaço antes da etapa 8. Depois da ampliação ficou em ~640 MB, acima do limite gratuito comum de 512 MB.
+- Tamanho do banco: **~2 GB** depois dos sinais do universo ampliado (limite gratuito comum na nuvem: 512 MB). Antes da etapa 8:
+  - guardar sinais só dos papéis no universo (−45%);
+  - remover o índice redundante de `sinais`;
+  - `VACUUM`.
 
 **Etapa 4: concluída.** Desenho e leitura dos resultados em `docs/ranking.md`, números em `docs/ranking_avaliacao.md`.
 - O modelo tem IC +0,105 (positivo nos 5 anos), abaixo do baseline de valor em IC (+0,119). O ganho dele está nos extremos: spread topo−fundo de +2,4% em 21 dias nas ações líquidas, contra −1,2% do valor sozinho.
 - O resultado depende do regime de juros altos (valor, qualidade e baixo risco).
 - Reavaliar com eventos (`avaliar_ranking.py`) quando a classificação de títulos terminar.
 
-**Etapa 5 — backtest e paper trading**
-- ✅ Regra da carteira, decidida pelo usuário em 30/09/2026 antes dos resultados:
-  - **top 30 do ranking, pesos iguais, rebalanceamento quinzenal (a cada 10 pregões), universo todo (≥ R$ 100 mil/dia), só comprada**;
-  - vende o que sai do top 30 no rebalanceamento, que é a mesma lógica de "comprar o top 30 e vender o que caiu" do app (regra 16).
-- 🟢 Sensibilidade (sem trocar a regra principal): N = 20 e 40; rebalanceamento semanal e mensal; custos em dobro; só líquidas (≥ R$ 1 mi/dia); com e sem eventos; regra com folga, que só vende quando a ação sai do top 60.
-- 🟢 Custos: emolumentos da B3 (~0,03%) + spread/slippage por faixa de liquidez, parametrizados em config.
-- Backtest com e sem o sinal de eventos (risco de look-ahead do LLM) e separado por faixa de liquidez (as pouco negociadas enganam).
-- O paper trading precisa de semanas de calendário antes de qualquer conclusão.
+**Etapa 5 — backtest ✅; paper trading em andamento.** Leitura em `docs/validacao.md`, números em `docs/backtest.md`.
+- Regra do usuário: top 30, pesos iguais, rebalanceamento quinzenal, universo todo.
+- Resultado: +12,4% ao ano, contra Ibovespa +12,8% e CDI +13,1%. Empate depois dos custos (giro de 9x ao ano, ~2,3% ao ano em custos).
+- Paper trading desde 29/09/2026 (`scripts/paper_trading.py`). Rodar todo pregão, o que a etapa 6 automatiza. Concluir só depois de semanas.
+- Candidata para depois de observar: regra com folga (top 60), com metade do giro. Não trocar agora.
 
 **Etapa 6 — relatório diário e agendamento contínuo (regra 15)**
 - 🙋 Fonte de cotação intradiária: grátis com ~15 min de atraso ou paga. Trazer opções, custos e termos.
@@ -182,6 +182,8 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Extrair eventos (títulos + texto completo, retomável): `python scripts/extrair_eventos.py`
 - Ranking de uma data (só dados até ela): `python scripts/gerar_ranking.py [--data AAAA-MM-DD]`
 - Avaliar modelo vs baselines (walk-forward): `python scripts/avaliar_ranking.py`
+- Backtest da regra da carteira: `python scripts/backtest.py`
+- Paper trading (todo pregão, depois de coletar e gerar sinais): `python scripts/paper_trading.py`
 - Testes: `pytest`
 - Dev local (backend): `uvicorn src.api.main:app --reload`
 - Dev local (frontend): `cd frontend && npm run dev`
