@@ -303,3 +303,22 @@ CREATE TABLE universo (
 );
 CREATE INDEX idx_universo_ticker ON universo (ticker, data);
 """
+
+
+SCHEMA_V6 = f"""
+-- Ranking diário (etapa 4). versao_modelo identifica o modelo e a forma de
+-- geração: 'wf-...' = previsão fora da amostra do walk-forward (histórico
+-- para avaliação/backtest); demais = gerado por scripts/gerar_ranking.py.
+-- posicao 1 = mais atrativo. disponivel_em = corte do pregão (dados até ele).
+CREATE TABLE ranking (
+    {_data("data")},
+    ticker          TEXT NOT NULL REFERENCES ativos (ticker),
+    score           REAL NOT NULL,
+    posicao         INTEGER NOT NULL CHECK (posicao >= 1),
+    versao_modelo   TEXT NOT NULL,
+    {_ts("disponivel_em")},
+    {_ts("calculado_em")},
+    PRIMARY KEY (data, ticker, versao_modelo)
+);
+CREATE INDEX idx_ranking_versao_data ON ranking (versao_modelo, data, posicao);
+"""

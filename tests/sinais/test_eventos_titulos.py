@@ -100,3 +100,17 @@ def test_prioridade_por_liquidez(conn):
     inserir_documento(conn, "V", "fato_relevante", "v", date(2024, 2, 1), ticker="VALE3")
     ordem = eventos._por_prioridade(conn, eventos.documentos_elegiveis(conn))
     assert list(ordem["ticker"]) == ["VALE3", "PETR4"]      # mais líquida primeiro, mesmo sendo mais recente
+
+
+def test_servico_indisponivel_para_sem_erro_permanente(conn_fatos):
+    conn, ids = conn_fatos
+
+    class Sobrecarregado(LLMTitulos):
+        def classificar(self, prompt, schema=None):
+            raise eventos.ServicoIndisponivel("503 UNAVAILABLE")
+
+    r = eventos.processar_titulos(conn, Sobrecarregado())
+    assert r["classificados"] == 0 and r["lotes"] == 0
+    erros = [e for (e,) in conn.execute("SELECT erro FROM llm_erros")]
+    assert erros == ["titulo: documento sem assunto"]        # 503 não vira erro do documento
+    assert eventos.processar_titulos(conn, LLMTitulos())["classificados"] == 2  # na próxima, processa

@@ -96,9 +96,17 @@ class CotaEsgotada(Exception):
     """Limite do plano gratuito atingido: parar e continuar na próxima execução."""
 
 
+class ServicoIndisponivel(Exception):
+    """Gemini sobrecarregado (5xx) mesmo após novas tentativas: parar e continuar
+    depois. Nunca vira erro permanente do documento (é problema do servidor)."""
+
+
+PARAR = (CotaEsgotada, ServicoIndisponivel)
+
+
 class ClienteGemini:
     def __init__(self, modelo: str | None = None, api_key: str | None = None,
-                 pausa: float | None = None, tentativas: int = 4, dormir=time.sleep):
+                 pausa: float | None = None, tentativas: int = 6, dormir=time.sleep):
         from google import genai
         from google.genai import types
 
@@ -138,6 +146,8 @@ class ClienteGemini:
                 if e.code not in (429, 500, 503) or tentativa == self._tentativas - 1:
                     if e.code == 429:
                         raise CotaEsgotada(str(e)[:200]) from e
+                    if e.code in (500, 503):
+                        raise ServicoIndisponivel(str(e)[:200]) from e
                     raise
                 atraso = 30.0 * 2 ** tentativa if e.code == 429 else 5.0 * 2 ** tentativa
                 logger.warning("Gemini %s; nova tentativa em %.0fs", e.code, atraso)
@@ -240,8 +250,8 @@ def processar(conn: sqlite3.Connection, llm: LLM, http, limite: int | None = Non
         else:
             try:
                 bruta = llm.classificar(prompt)
-            except CotaEsgotada as e:
-                logger.warning("Cota do Gemini esgotada; continue depois: %s", e)
+            except PARAR as e:
+                logger.warning("Gemini indisponível ou cota esgotada; continue depois: %s", e)
                 break
             except Exception as e:  # noqa: BLE001
                 _registrar_erro(conn, doc.id, llm.modelo, f"llm: {type(e).__name__}: {e}")
@@ -321,8 +331,8 @@ def processar_titulos(conn: sqlite3.Connection, llm: LLM, limite_lotes: int | No
         else:
             try:
                 bruta = llm.classificar(prompt, schema=LoteTitulos)
-            except CotaEsgotada as e:
-                logger.warning("Cota do Gemini esgotada; continue depois: %s", e)
+            except PARAR as e:
+                logger.warning("Gemini indisponível ou cota esgotada; continue depois: %s", e)
                 break
             except Exception as e:  # noqa: BLE001
                 logger.warning("Lote de títulos falhou: %s", e)
