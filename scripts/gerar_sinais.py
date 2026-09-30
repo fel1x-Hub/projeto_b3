@@ -22,7 +22,7 @@ from config import settings  # noqa: E402
 from src.db.conexao import conectar  # noqa: E402
 from src.db.migracoes import migrar  # noqa: E402
 from src.logging_config import configurar_logging  # noqa: E402
-from src.sinais import base, cobertura, fundamentalistas, sentimento, tecnicos  # noqa: E402
+from src.sinais import base, cobertura, eventos, fundamentalistas, sentimento, tecnicos  # noqa: E402
 
 logger = logging.getLogger("gerar_sinais")
 
@@ -30,6 +30,7 @@ FAMILIAS = {
     "tecnicos": tecnicos,
     "fundamentalistas": fundamentalistas,
     "sentimento": sentimento,
+    "eventos": eventos,  # só lê eventos já extraídos (scripts/extrair_eventos.py)
 }
 
 

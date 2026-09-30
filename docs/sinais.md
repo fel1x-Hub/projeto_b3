@@ -83,5 +83,22 @@ O modelo passa do limite de 0,6 combinado, mas tem um **viés para o negativo**:
 
 Um viés constante afeta pouco o `sent_delta`, que compara com a média recente do próprio ativo. Se na etapa 4 o sentimento pesar no ranking, vale testar a classificação dos títulos pelo LLM (Gemini), que entende esse contexto.
 
-## Eventos (`src/sinais/eventos.py`, a implementar)
-Extração com LLM (Gemini, plano grátis) de fatos relevantes e releases. Pendente da chave `GEMINI_API_KEY`.
+## Eventos (`src/sinais/eventos.py`, versão 1, prompt versão 1)
+O LLM é o **Gemini** (`gemini-3.5-flash-lite`, plano grátis), configurado por `GEMINI_MODELO` no `.env`. Ele lê:
+- todos os fatos relevantes;
+- os releases de resultado em português, só nas primeiras 4 páginas, que trazem os destaques.
+
+São ~1.400 documentos. O modelo devolve JSON validado por schema (pydantic) com tipo do evento, direção (positiva, neutra ou negativa), relevância (1 a 5) e resumo. **Ele não calcula números.** As respostas inválidas vão para `llm_erros`, e as válidas ficam em `llm_cache`, sem reprocessar.
+
+A extração roda em `python scripts/extrair_eventos.py`, que é retomável: para quando a cota grátis acaba e continua na próxima execução. O ritmo é de ~9 requisições por minuto (`GEMINI_PAUSA`).
+
+Cada evento vale `s = direção (+1, 0 ou −1) × relevância`.
+
+| Sinal | Definição |
+|---|---|
+| `evt_saldo` | Soma de `s × 0,5^(idade/10)`, com idade em pregões e janela de 63 pregões (meia-vida de 10). |
+| `evt_n_21d` | Número de eventos nos últimos 21 pregões. |
+
+**Cobertura.** Um pregão só recebe sinal se todos os documentos da sua janela já foram processados. Assim, um documento pendente não vira um falso "sem evento". Documentos com erro permanente, como um arquivo que não é PDF, contam como processados sem evento.
+
+**Risco residual de look-ahead.** O modelo conhece fatos posteriores à data de cada documento. O prompt manda julgar só pelo texto e pelo que se sabia na data, mas isso não é garantido. Trate este sinal com cautela no backtest da etapa 5, por exemplo comparando o desempenho com e sem ele.

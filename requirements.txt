@@ -8,3 +8,5 @@ tzdata>=2024.1
 yfinance>=0.2.50
 torch>=2.5
 transformers>=4.45
+pypdf>=5.0
+google-genai>=1.0
