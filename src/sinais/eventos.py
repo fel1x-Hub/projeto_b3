@@ -122,16 +122,18 @@ class ClienteGemini:
         self._pausa, self._tentativas, self._dormir = pausa, tentativas, dormir
         self._ultima = 0.0
 
-    def _config(self, schema: type[BaseModel]):
+    def _config(self, schema: type[BaseModel] | None):
+        """schema=None: texto livre (ex.: relatório); senão, JSON validado pelo schema."""
         if schema not in self._configs:
-            self._configs[schema] = self._types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_json_schema=schema.model_json_schema(),
-                automatic_function_calling=self._types.AutomaticFunctionCallingConfig(disable=True),
-            )
+            sem_ferramentas = self._types.AutomaticFunctionCallingConfig(disable=True)
+            self._configs[schema] = (
+                self._types.GenerateContentConfig(automatic_function_calling=sem_ferramentas) if schema is None
+                else self._types.GenerateContentConfig(
+                    response_mime_type="application/json", response_json_schema=schema.model_json_schema(),
+                    automatic_function_calling=sem_ferramentas))
         return self._configs[schema]
 
-    def classificar(self, prompt: str, schema: type[BaseModel] = Evento) -> str:
+    def classificar(self, prompt: str, schema: type[BaseModel] | None = Evento) -> str:
         from google.genai import errors
 
         for tentativa in range(self._tentativas):

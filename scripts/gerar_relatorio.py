@@ -1,0 +1,89 @@
+"""Gera o relatório diário (Markdown) de um ou mais pregões.
+
+Uso:
+    python scripts/gerar_relatorio.py                 # último pregão
+    python scripts/gerar_relatorio.py --data 2026-09-25
+    python scripts/gerar_relatorio.py --ultimos 5
+
+Todos os números vêm dos insumos calculados em código; o Gemini só redige.
+Relatório com número sem origem é refeito uma vez e, se persistir, vai para
+relatorios/rejeitados/ (não é publicado).
+"""
+
+import argparse
+import json
+import logging
+import sys
+from datetime import date
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from config import settings  # noqa: E402
+from src.db.conexao import conectar  # noqa: E402
+from src.db.migracoes import migrar  # noqa: E402
+from src.logging_config import configurar_logging  # noqa: E402
+from src.ranking import gerar  # noqa: E402
+from src.relatorio import insumos, redigir  # noqa: E402
+from src.sinais.eventos import ClienteGemini  # noqa: E402
+
+logger = logging.getLogger("gerar_relatorio")
+PASTA = settings.BASE_DIR / "relatorios"
+
+
+def garantir_ranking(conn, dia: date) -> None:
+    """Gera ranking e fatores oficiais do dia, se ainda não existirem."""
+    tem_fatores = conn.execute("SELECT 1 FROM ranking_fatores WHERE data = ? AND versao_modelo = ? LIMIT 1",
+                               (dia.isoformat(), gerar.VERSAO_MODELO)).fetchone()
+    if tem_fatores:
+        return
+    resultado = gerar.ranking_da_data(conn, dia, salvar_em=settings.BASE_DIR / "data" / "modelos")
+    gerar.gravar(conn, resultado.ranking, gerar.VERSAO_MODELO)
+    gerar.gravar_fatores(conn, resultado.fatores, gerar.VERSAO_MODELO)
+
+
+def gerar_um(conn, llm, dia: date) -> bool:
+    garantir_ranking(conn, dia)
+    entrada = insumos.montar(conn, dia)
+    texto, problemas = redigir.escrever(llm, entrada)
+    destino = PASTA / f"{dia.isoformat()}.md"
+    if problemas:
+        rejeitado = PASTA / "rejeitados" / f"{dia.isoformat()}.md"
+        rejeitado.parent.mkdir(parents=True, exist_ok=True)
+        rejeitado.write_text(f"<!-- números sem origem: {', '.join(problemas)} -->\n" + texto, encoding="utf-8")
+        logger.error("Relatório de %s rejeitado: números sem origem %s", dia, problemas)
+        return False
+    PASTA.mkdir(parents=True, exist_ok=True)
+    destino.write_text(texto, encoding="utf-8")
+    (PASTA / "insumos").mkdir(exist_ok=True)
+    (PASTA / "insumos" / f"{dia.isoformat()}.json").write_text(
+        json.dumps(entrada, ensure_ascii=False, indent=1), encoding="utf-8")  # para auditoria
+    logger.info("Relatório salvo: %s", destino)
+    return True
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--data", type=date.fromisoformat, default=None)
+    parser.add_argument("--ultimos", type=int, default=1)
+    args = parser.parse_args(argv)
+    configurar_logging()
+    conn = conectar()
+    try:
+        migrar(conn)
+        if args.data:
+            dias = [args.data]
+        else:
+            dias = [date.fromisoformat(r[0]) for r in conn.execute(
+                "SELECT DISTINCT data FROM universo ORDER BY data DESC LIMIT ?", (args.ultimos,))][::-1]
+        llm = ClienteGemini()
+        resultados = {d: gerar_um(conn, llm, d) for d in dias}
+    finally:
+        conn.close()
+    for d, ok in resultados.items():
+        print(f"  {d}: {'ok -> relatorios/' + d.isoformat() + '.md' if ok else 'REJEITADO (ver relatorios/rejeitados/)'}")
+    return 0 if all(resultados.values()) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
