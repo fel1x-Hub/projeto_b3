@@ -9,6 +9,7 @@ ranking, não importa quantos dados futuros existam no banco.
 import logging
 import sqlite3
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
 
@@ -45,9 +46,11 @@ def gravar(conn: sqlite3.Connection, scores: pd.DataFrame, versao: str) -> int:
     return len(ranking)
 
 
-def ranking_da_data(conn: sqlite3.Connection, dia: date, colunas: list[str] | None = None
-                    ) -> tuple[pd.DataFrame, pd.Series]:
-    """(ranking do dia com colunas ticker/score/posicao, importância das features)."""
+def ranking_da_data(conn: sqlite3.Connection, dia: date, colunas: list[str] | None = None,
+                    salvar_em: Path | None = None) -> tuple[pd.DataFrame, pd.Series]:
+    """(ranking do dia com colunas ticker/score/posicao, importância das features).
+    Com `salvar_em`, grava o modelo treinado (texto do LightGBM) nessa pasta como
+    <VERSAO_MODELO>_<data>.txt, para auditoria e reprodução."""
     colunas = colunas or dados.FEATURES_BASE
     ate = base.corte(dia)
     X = dados.carregar_features(conn, colunas, ate)
@@ -57,6 +60,10 @@ def ranking_da_data(conn: sqlite3.Connection, dia: date, colunas: list[str] | No
         raise ValueError(f"histórico insuficiente para treinar em {dia}: {len(treino)} amostras")
     treino["y"] = modelo.alvo_de_treino(treino)
     m = modelo.treinar(treino[colunas], treino["y"])
+    if salvar_em is not None:
+        salvar_em.mkdir(parents=True, exist_ok=True)
+        # o LightGBM (C) não grava em caminhos com acento no Windows ("Fodástica"): grava via Python
+        (salvar_em / f"{VERSAO_MODELO}_{dia.isoformat()}.txt").write_text(m.model_to_string(), encoding="utf-8")
 
     hoje = X.xs(pd.Timestamp(dia), level="data", drop_level=False) if pd.Timestamp(dia) in X.index.get_level_values("data") else None
     if hoje is None or hoje.empty:

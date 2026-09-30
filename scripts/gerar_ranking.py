@@ -39,7 +39,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         migrar(conn)
         dia = args.data or date.fromisoformat(conn.execute("SELECT MAX(data) FROM universo").fetchone()[0])
-        ranking, importancia = gerar.ranking_da_data(conn, dia)
+        ranking, importancia = gerar.ranking_da_data(conn, dia, salvar_em=settings.BASE_DIR / "data" / "modelos")
         gerar.gravar(conn, ranking, gerar.VERSAO_MODELO)
     except ValueError as e:
         logger.error("%s", e)

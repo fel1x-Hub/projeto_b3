@@ -30,8 +30,8 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 | 1 | Fundação e banco de dados | [etapas/etapa1.md](etapas/etapa1.md) | ✅ concluída |
 | 2 | Coleta de dados | [etapas/etapa2.md](etapas/etapa2.md) | ✅ concluída |
 | 3 | Extração de sinais | [etapas/etapa3.md](etapas/etapa3.md) | ✅ concluída |
-| 4 | Modelo de ranking | [etapas/etapa4.md](etapas/etapa4.md) | 🔨 em andamento |
-| 5 | Backtest e paper trading | [etapas/etapa5.md](etapas/etapa5.md) | ⏳ pendente |
+| 4 | Modelo de ranking | [etapas/etapa4.md](etapas/etapa4.md) | ✅ concluída |
+| 5 | Backtest e paper trading | [etapas/etapa5.md](etapas/etapa5.md) | 🔨 em andamento |
 | 6 | Relatório diário | [etapas/etapa6.md](etapas/etapa6.md) | ⏳ pendente |
 | 7 | Interface (dashboard + chat IA + carteira) | [etapas/etapa7.md](etapas/etapa7.md) | ⏳ pendente |
 | 8 | Deploy (desktop .exe + web gratuito) | [etapas/etapa8.md](etapas/etapa8.md) | ⏳ pendente |
@@ -61,14 +61,10 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - CVM: 24 tickers pequenos ou extintos seguem sem CNPJ (ver alerta do `coletar.py`). Para resolver, acrescente-os em `config/cnpj_manual.csv`, com a fonte.
 - Tamanho do banco: medir o que ocupa espaço antes da etapa 8. Depois da ampliação ficou em ~640 MB, acima do limite gratuito comum de 512 MB.
 
-**Etapa 4 — ranking**
-- 🟢 Alvo: retorno total dos próximos 21 pregões menos a mediana do universo no mesmo dia (ranking cross-section). Os 5 pregões entram como análise de sensibilidade.
-- 🟢 Features: todos os sinais, ranqueados em percentil dentro do universo de cada dia. Isso tira a escala e reduz outliers; faltante vira NaN, que o LightGBM trata.
-- 🟢 Baselines: aleatório, momentum (`ret_63d`), valor (`fund_lp`) e sentimento (quando houver histórico).
-- 🟢 Validação walk-forward anual, com gap de 21 pregões. Métricas: IC de Spearman por dia (média, desvio, % de dias positivos) e retorno do top decil menos o bottom decil.
-- 🟢 LightGBM com hiperparâmetros modestos e sem busca exaustiva. Registrar o número de variações testadas. SHAP para interpretar.
-- Tabela `ranking` (ticker, data, score, posição, versão do modelo) e `scripts/gerar_ranking.py`.
-- Resultado ruim contra os baselines é resultado válido e deve ser relatado com honestidade.
+**Etapa 4: concluída.** Desenho e leitura dos resultados em `docs/ranking.md`, números em `docs/ranking_avaliacao.md`.
+- O modelo tem IC +0,105 (positivo nos 5 anos), abaixo do baseline de valor em IC (+0,119). O ganho dele está nos extremos: spread topo−fundo de +2,4% em 21 dias nas ações líquidas, contra −1,2% do valor sozinho.
+- O resultado depende do regime de juros altos (valor, qualidade e baixo risco).
+- Reavaliar com eventos (`avaliar_ranking.py`) quando a classificação de títulos terminar.
 
 **Etapa 5 — backtest e paper trading**
 - 🙋 Regra da carteira (N ações, pesos, frequência de rebalanceamento), fixada **antes** de ver os resultados.
@@ -159,6 +155,9 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Coletar dados (incremental; 1ª vez = 5 anos): `python scripts/coletar.py` — `--fonte cvm|b3|proventos|bcb|rss`, `--desde AAAA-MM-DD`
 - Gerar sinais + relatório de cobertura: `python scripts/gerar_sinais.py` — catálogo em `docs/sinais.md`
 - Medir qualidade do sentimento: `python scripts/avaliar_sentimento.py` (rótulos em `rotulos/`)
+- Extrair eventos (títulos + texto completo, retomável): `python scripts/extrair_eventos.py`
+- Ranking de uma data (só dados até ela): `python scripts/gerar_ranking.py [--data AAAA-MM-DD]`
+- Avaliar modelo vs baselines (walk-forward): `python scripts/avaliar_ranking.py`
 - Testes: `pytest`
 - Dev local (backend): `uvicorn src.api.main:app --reload`
 - Dev local (frontend): `cd frontend && npm run dev`

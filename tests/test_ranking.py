@@ -108,3 +108,9 @@ def test_dia_sem_dados_e_erro_claro(conn_mercado):
     conn, _ = conn_mercado
     with pytest.raises(ValueError, match="sem universo"):
         gerar.ranking_da_data(conn, date(2024, 12, 25), ["x"])
+
+
+def test_modelo_salvo_para_auditoria(conn_mercado, tmp_path):
+    conn, dias = conn_mercado
+    gerar.ranking_da_data(conn, dias[250], ["x"], salvar_em=tmp_path)
+    assert (tmp_path / f"{gerar.VERSAO_MODELO}_{dias[250].isoformat()}.txt").exists()
