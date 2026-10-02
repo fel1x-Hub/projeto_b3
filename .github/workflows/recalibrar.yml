@@ -36,7 +36,7 @@ jobs:
       - name: Calibração das previsões e efeito dos padrões gráficos
         run: python scripts/calibrar.py
 
-      - name: Nota de venda (chance de cair): avaliação pré-registrada e cálculo do último pregão
+      - name: "Nota de venda (chance de cair): avaliação pré-registrada e cálculo do último pregão"
         run: |
           python scripts/avaliar_venda.py
           python scripts/gerar_ranking.py --venda
