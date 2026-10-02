@@ -9,7 +9,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v7
       with:
         python-version: "3.13"
         cache: pip
@@ -20,7 +20,7 @@ runs:
       run: pip install -r requirements-nuvem.txt
 
     - name: Modelo de sentimento (FinBERT) em cache
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.cache/huggingface
         key: hf-finbert-v1
@@ -28,7 +28,7 @@ runs:
     - name: Banco de trabalho (último salvo)
       if: inputs.restaurar-banco == 'true'
       id: banco
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v6
       with:
         path: |
           data/b3.db

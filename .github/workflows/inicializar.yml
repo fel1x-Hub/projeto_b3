@@ -25,7 +25,7 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/preparar
         with:
           restaurar-banco: "false"
@@ -46,7 +46,7 @@ jobs:
         run: python scripts/publicar_nuvem.py --completo
 
       - name: Guardar o banco
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             data/b3.db

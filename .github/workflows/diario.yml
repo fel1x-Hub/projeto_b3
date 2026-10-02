@@ -24,7 +24,7 @@ jobs:
       pronto: ${{ steps.banco.outputs.cache-matched-key != '' }}
     steps:
       - id: banco
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: data/b3.db
           key: banco-v1-${{ github.run_id }}
@@ -44,7 +44,7 @@ jobs:
       PLUGGY_ITEM_IDS: ${{ secrets.PLUGGY_ITEM_IDS }}
       LOG_LEVEL: INFO
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/preparar
 
       - name: Pipeline completo
@@ -64,7 +64,7 @@ jobs:
 
       - name: Guardar o banco
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             data/b3.db
