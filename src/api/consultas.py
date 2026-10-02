@@ -187,7 +187,7 @@ def ibovespa(conn: sqlite3.Connection) -> dict | None:
     """Ibovespa do momento (yfinance ^BVSP); sem ele, o BOVA11 oficial como referência."""
     r = conn.execute("SELECT preco, variacao_dia, horario_cotacao FROM cotacao_atual WHERE ticker = 'IBOV'").fetchone()
     f = ultimos_fechamentos(conn).get("BOVA11")
-    if r and (f is None or _data_brt(r[2]).isoformat() >= f["data"]):  # nunca o intradiário de um dia já fechado
+    if r and (f is None or _data_brt(r[2]).isoformat() > f["data"]):  # nunca o intradiário de um dia já fechado
         return {"nome": "Ibovespa", "valor": r[0], "variacao_dia": r[1], "horario": r[2], "provisorio": True}
     if f:
         return {"nome": "BOVA11", "valor": f["fechamento"],

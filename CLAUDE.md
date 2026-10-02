@@ -193,4 +193,5 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Testes: `pytest`
 - Dev local (backend): `uvicorn src.api.main:app --reload`
 - Dev local (frontend): `cd frontend && npm run dev`
-- App desktop (Qt): `python desktop/main.py` · build .exe: `pyinstaller desktop/app.spec` (a definir na etapa 7/8)
+- App desktop (Qt): `python desktop/main.py` (sobe a API embutida se preciso) · atalho: `powershell -ExecutionPolicy Bypass -File scripts\criar_atalho.ps1` · build .exe: etapa 8
+- API: `uvicorn src.api.main:app --host 127.0.0.1` (use 127.0.0.1, não localhost: no Windows localhost custa ~2 s por chamada) · endpoints em `docs/api.md`

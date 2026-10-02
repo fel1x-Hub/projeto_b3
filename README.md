@@ -77,6 +77,32 @@ Get-ScheduledTask -TaskName ProjetoB3-Agendador                                 
 
 O agendador local só roda com o PC ligado. Na etapa 8 esse papel passa para a nuvem.
 
+## App desktop e API
+
+```bash
+python desktop/main.py                                              # abre o app (sobe a API embutida se preciso)
+powershell -ExecutionPolicy Bypass -File scripts\criar_atalho.ps1   # atalho "Projeto B3" na Área de Trabalho
+uvicorn src.api.main:app --host 127.0.0.1                           # só a API; Swagger em http://127.0.0.1:8000/docs
+```
+
+O app tem as abas Mercado, Ranking, Ação, Carteira, Relatório e Chat IA. Ele se atualiza sozinho: a cada 1 min com o pregão aberto e a cada 5 min com ele fechado. A barra de baixo mostra se o pregão está aberto, a hora do dado e o selo **PROVISÓRIO** nos valores intradiários. Se a API falhar, a tela mantém o último dado válido e avisa.
+
+A API exige `API_TOKEN` no `.env`. Os endpoints estão documentados em [docs/api.md](docs/api.md).
+
+### Carteira
+
+Há três formas de informar a carteira. Todas podem ser usadas juntas:
+1. **Nova operação**: compra ou venda manual.
+2. **Importar extrato…**: no site da B3, entre na Área do Investidor (investidor.b3.com.br), vá em Extratos → Negociação, filtre o período e exporte. Funciona para a XP e qualquer corretora. Também aceita uma planilha simples com ticker, tipo, data, quantidade e preço. Reimportar não duplica, e as linhas não reconhecidas são listadas.
+3. **Sincronizar XP** (Meu Pluggy / Open Finance, grátis para uso pessoal): o passo a passo está em [src/coleta/pluggy.py](src/coleta/pluggy.py). Você autoriza no app da XP, e nenhuma senha passa pelo sistema. As credenciais `PLUGGY_*` ficam no `.env`. A sincronização roda junto com a coleta diária.
+
+O ganho "ao vivo" é a quantidade × a cotação do momento (~15 min de atraso). As indicações seguem a regra do sistema:
+- **comprar:** papéis do top 30 que não estão na carteira;
+- **observar:** papéis da carteira entre as posições 31 e 60;
+- **considerar vender:** papéis da carteira abaixo da posição 60.
+
+Cada indicação mostra o "por quê" (os sinais que mais pesaram). **Não é recomendação de investimento.**
+
 ## Relatório diário
 
 Fica em `relatorios/AAAA-MM-DD.md`. Os números são todos calculados em código ([src/relatorio/insumos.py](src/relatorio/insumos.py)), e o Gemini só redige o texto. Uma checagem automática confere cada número do texto contra os insumos. Se o relatório citar número sem origem, é refeito uma vez; se persistir, vai para `relatorios/rejeitados/` e não é publicado. Os insumos de cada dia ficam em `relatorios/insumos/` para auditoria.
