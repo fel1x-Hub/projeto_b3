@@ -89,3 +89,31 @@ def test_montar_paper_iniciado_sem_pregao_completo(conn):
         conn.execute("UPDATE paper_config SET valor = '2026-09-24'")
     assert montar(conn, date(2026, 9, 24))["paper_trading"] == {
         "inicio": "2026-09-24", "retorno_acumulado": "sem pregão completo ainda"}
+
+
+def _universo(conn, datas):
+    ts = "2026-09-30T22:00:00+00:00"
+    with conn:
+        conn.executemany("INSERT INTO universo VALUES (?, 'PETR4', 1e6, 'liquidez', ?)", [(d, ts) for d in datas])
+
+
+def test_ranking_preenche_pregoes_perdidos(conn):
+    from datetime import date
+    from src.ranking import gerar
+    _universo(conn, ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"])
+    assert gerar.datas_pendentes(conn) == [date(2026, 10, 1)]          # sem ranking ainda: só o último
+    with conn:
+        conn.execute("INSERT INTO ranking VALUES ('2026-09-29', 'PETR4', 0.5, 1, 'lgbm-v1', ?, ?)",
+                     ("2026-09-29T22:00:00+00:00", "2026-09-29T22:00:00+00:00"))
+    assert gerar.datas_pendentes(conn) == [date(2026, 9, 30), date(2026, 10, 1)]   # PC desligado em 30/09
+    assert gerar.datas_pendentes(conn, limite=1) == [date(2026, 10, 1)]
+
+
+def test_relatorio_preenche_dias_sem_relatorio(conn, tmp_path):
+    from datetime import date
+    from scripts.gerar_relatorio import pendentes
+    _universo(conn, ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"])
+    (tmp_path / "rejeitados").mkdir()
+    (tmp_path / "2026-09-28.md").write_text("x")
+    (tmp_path / "rejeitados" / "2026-10-01.md").write_text("x")
+    assert pendentes(conn, tmp_path, janela=3) == [date(2026, 9, 29), date(2026, 9, 30)]

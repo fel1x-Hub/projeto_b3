@@ -32,8 +32,8 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 | 3 | Extração de sinais | [etapas/etapa3.md](etapas/etapa3.md) | ✅ concluída |
 | 4 | Modelo de ranking | [etapas/etapa4.md](etapas/etapa4.md) | ✅ concluída |
 | 5 | Backtest e paper trading | [etapas/etapa5.md](etapas/etapa5.md) | 🔨 paper trading em andamento (backtest ✅) |
-| 6 | Relatório diário | [etapas/etapa6.md](etapas/etapa6.md) | 🔨 em andamento |
-| 7 | Interface (dashboard + chat IA + carteira) | [etapas/etapa7.md](etapas/etapa7.md) | ⏳ pendente |
+| 6 | Relatório diário | [etapas/etapa6.md](etapas/etapa6.md) | ✅ concluída |
+| 7 | Interface (dashboard + chat IA + carteira) | [etapas/etapa7.md](etapas/etapa7.md) | 🔨 em andamento |
 | 8 | Deploy (desktop .exe + web gratuito) | [etapas/etapa8.md](etapas/etapa8.md) | ⏳ pendente |
 
 Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
@@ -79,6 +79,7 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Cotação intradiária (decisão do usuário, 30/09/2026): **yfinance grátis, ~16 min de atraso**. Isolada em `src/coleta/intradiario.py` para trocar por fonte paga depois (brapi Pro: ~5 min por R$ 117/mês).
 - LLM do relatório: Gemini grátis, que só redige. Número sem origem → refaz uma vez → `relatorios/rejeitados/`.
 - Agendador local registrado no Windows (tarefa `ProjetoB3-Agendador`, 30/09/2026): ciclo intradiário a cada 15 min no pregão e `rodar_diario.py` às 21h30. Só roda com o PC ligado; vai para a nuvem na etapa 8.
+- Dias perdidos (PC desligado ou em espera) são preenchidos sozinhos no pipeline seguinte: ranking oficial e relatório de cada pregão pendente. O paper trading depende disso, porque rebalanceia a cada 10 datas de ranking.
 - A cota grátis do Gemini é compartilhada entre eventos, relatório e (etapa 7) chat. Se faltar, o relatório tem prioridade: o passo de eventos vem antes no pipeline, mas para sozinho no 429 sem gravar erro.
 
 **Etapa 7 — interface (regra 15: sempre atualizada)**

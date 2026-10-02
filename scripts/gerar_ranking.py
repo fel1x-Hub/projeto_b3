@@ -1,7 +1,7 @@
 """Gera o ranking de uma data usando só dados disponíveis até ela.
 
 Uso:
-    python scripts/gerar_ranking.py                    # último pregão com dados
+    python scripts/gerar_ranking.py                    # pregões ainda sem ranking (o último, normalmente)
     python scripts/gerar_ranking.py --data 2025-03-14  # qualquer data passada
     python scripts/gerar_ranking.py --top 20
 
@@ -38,11 +38,15 @@ def main(argv: list[str] | None = None) -> int:
     conn = conectar(args.db)
     try:
         migrar(conn)
-        dia = args.data or date.fromisoformat(conn.execute("SELECT MAX(data) FROM universo").fetchone()[0])
-        resultado = gerar.ranking_da_data(conn, dia, salvar_em=settings.BASE_DIR / "data" / "modelos")
-        ranking, importancia = resultado.ranking, resultado.importancia
-        gerar.gravar(conn, ranking, gerar.VERSAO_MODELO)
-        gerar.gravar_fatores(conn, resultado.fatores, gerar.VERSAO_MODELO)
+        dias = [args.data] if args.data else gerar.datas_pendentes(conn)
+        if not dias:
+            print("Ranking oficial já está em dia.")
+            return 0
+        for dia in dias:
+            resultado = gerar.ranking_da_data(conn, dia, salvar_em=settings.BASE_DIR / "data" / "modelos")
+            ranking, importancia = resultado.ranking, resultado.importancia
+            gerar.gravar(conn, ranking, gerar.VERSAO_MODELO)
+            gerar.gravar_fatores(conn, resultado.fatores, gerar.VERSAO_MODELO)
     except ValueError as e:
         logger.error("%s", e)
         return 1

@@ -1,7 +1,7 @@
 """Gera o relatório diário (Markdown) de um ou mais pregões.
 
 Uso:
-    python scripts/gerar_relatorio.py                 # último pregão
+    python scripts/gerar_relatorio.py                 # pregões recentes ainda sem relatório (o último, normalmente)
     python scripts/gerar_relatorio.py --data 2026-09-25
     python scripts/gerar_relatorio.py --ultimos 5
 
@@ -42,6 +42,14 @@ def garantir_ranking(conn, dia: date) -> None:
     gerar.gravar_fatores(conn, resultado.fatores, gerar.VERSAO_MODELO)
 
 
+def pendentes(conn, pasta: Path = PASTA, janela: int = 5) -> list[date]:
+    """Pregões entre os últimos `janela` sem relatório publicado nem rejeitado (PC desligado num dia)."""
+    recentes = [date.fromisoformat(r[0]) for r in conn.execute(
+        "SELECT DISTINCT data FROM universo ORDER BY data DESC LIMIT ?", (janela,))][::-1]
+    return [d for d in recentes if not (pasta / f"{d.isoformat()}.md").exists()
+            and not (pasta / "rejeitados" / f"{d.isoformat()}.md").exists()]
+
+
 def gerar_um(conn, llm, dia: date) -> bool:
     garantir_ranking(conn, dia)
     entrada = insumos.montar(conn, dia)
@@ -65,7 +73,7 @@ def gerar_um(conn, llm, dia: date) -> bool:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--data", type=date.fromisoformat, default=None)
-    parser.add_argument("--ultimos", type=int, default=1)
+    parser.add_argument("--ultimos", type=int, default=None, help="refaz os últimos N pregões")
     args = parser.parse_args(argv)
     configurar_logging()
     conn = conectar()
@@ -73,9 +81,14 @@ def main(argv: list[str] | None = None) -> int:
         migrar(conn)
         if args.data:
             dias = [args.data]
-        else:
+        elif args.ultimos:
             dias = [date.fromisoformat(r[0]) for r in conn.execute(
                 "SELECT DISTINCT data FROM universo ORDER BY data DESC LIMIT ?", (args.ultimos,))][::-1]
+        else:
+            dias = pendentes(conn)
+        if not dias:
+            print("Relatórios já estão em dia.")
+            return 0
         llm = ClienteGemini()
         resultados = {d: gerar_um(conn, llm, d) for d in dias}
     finally:

@@ -84,6 +84,24 @@ class RankingDoDia:
     modelo: object = None
 
 
+def datas_pendentes(conn: sqlite3.Connection, versao: str = VERSAO_MODELO, limite: int = 15) -> list[date]:
+    """Pregões do universo ainda sem ranking oficial, desde o último gerado.
+
+    Um pregão sem ranking desloca o calendário de rebalanceamento do paper
+    trading (que conta datas de ranking), então dias perdidos (PC desligado)
+    são preenchidos. Sem nenhum ranking ainda, só o último pregão.
+    """
+    ultimo = conn.execute("SELECT MAX(data) FROM ranking WHERE versao_modelo = ?", (versao,)).fetchone()[0]
+    if ultimo is None:
+        sql, params = "SELECT MAX(data) FROM universo", ()
+    else:
+        sql, params = "SELECT DISTINCT data FROM universo WHERE data > ? ORDER BY data", (ultimo,)
+    dias = [date.fromisoformat(r[0]) for r in conn.execute(sql, params) if r[0]]
+    if len(dias) > limite:
+        logger.warning("%d pregões sem ranking; gerando só os últimos %d", len(dias), limite)
+    return dias[-limite:]
+
+
 def ranking_da_data(conn: sqlite3.Connection, dia: date, colunas: list[str] | None = None,
                     salvar_em: Path | None = None) -> RankingDoDia:
     """Ranking do dia, importância geral dos sinais e fatores por ação.
