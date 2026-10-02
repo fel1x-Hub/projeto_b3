@@ -10,7 +10,7 @@ services:
     buildCommand: pip install -r requirements-api.txt
     startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips "*"
     healthCheckPath: /health
-    autoDeploy: true
+    autoDeployTrigger: commit   # publica a cada push na main
     envVars:
       - key: PYTHON_VERSION
         value: "3.13.7"
