@@ -8,7 +8,7 @@ const PERIODOS = [["1 mês", 31], ["3 meses", 92], ["1 ano", 365], ["3 anos", 10
 const EIXO = { stroke: "#8b949e", fontSize: 11 };
 const DICA = { background: "#161b22", border: "1px solid #30363d" };
 
-function Porque({ ticker, fatores }) {
+function Porque({ ticker, fatores, logado }) {
   const [estado, setEstado] = useState({ texto: null, carregando: false, erro: null });
   const pedir = async () => {
     setEstado({ texto: null, carregando: true, erro: null });
@@ -33,7 +33,8 @@ function Porque({ ticker, fatores }) {
         </div>
       )}
       {estado.erro && <p className="text-atencao">Explicação indisponível: {estado.erro.message}</p>}
-      <button onClick={pedir} disabled={estado.carregando}
+      {!logado && <p className="text-apagado">Entre (no topo da página) para usar a explicação com IA.</p>}
+      <button onClick={pedir} disabled={estado.carregando || !logado}
               className="bg-borda hover:bg-destaque/40 rounded px-3 py-1.5 disabled:opacity-50">
         {estado.carregando ? "Pedindo…" : "Explicar com IA"}
       </button>
@@ -41,7 +42,7 @@ function Porque({ ticker, fatores }) {
   );
 }
 
-export default function Ativo({ ticker, aoEnvelope, abrirAtivo }) {
+export default function Ativo({ ticker, aoEnvelope, abrirAtivo, logado }) {
   const [dias, setDias] = useState(365);
   const [entrada, setEntrada] = useState("");
   const [aba, setAba] = useState("porque");
@@ -105,7 +106,7 @@ export default function Ativo({ ticker, aoEnvelope, abrirAtivo }) {
                       className={`px-3 py-1 rounded ${aba === k ? "bg-destaque/30" : "bg-borda/50"}`}>{t}</button>
             ))}
           </div>
-          {aba === "porque" && <Porque ticker={dados.ticker} fatores={dados.fatores} />}
+          {aba === "porque" && <Porque ticker={dados.ticker} fatores={dados.fatores} logado={logado} />}
           {aba === "sinais" && (
             <Tabela chaveLinha="sinal" linhas={dados.sinais.sinais} colunas={[
               { titulo: "Sinal", chave: "nome" },

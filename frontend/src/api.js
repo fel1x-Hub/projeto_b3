@@ -1,4 +1,4 @@
-// Acesso à API (regra 10: o site só fala com a API). Token guardado no navegador.
+// Acesso à API (regra 10: o site só fala com a API). Guarda só a sessão de login (nunca a senha).
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export const BASE = import.meta.env.VITE_API_URL || "/api";
@@ -17,7 +17,8 @@ export class ErroAPI extends Error {
 }
 
 export async function chamar(caminho, { metodo = "GET", corpo, arquivo } = {}) {
-  const opcoes = { method: metodo, headers: { Authorization: `Bearer ${token.ler()}` } };
+  const sessao = token.ler();          // visitante não manda nada; quem entrou manda a sessão
+  const opcoes = { method: metodo, headers: sessao ? { Authorization: `Bearer ${sessao}` } : {} };
   if (arquivo) {
     const form = new FormData();
     form.append("arquivo", arquivo);

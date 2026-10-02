@@ -5,9 +5,9 @@ import { corValor, hora, num, pct, reais } from "../fmt.js";
 
 const COR_ALERTA = { alerta: "text-baixa", atencao: "text-atencao", info: "text-apagado" };
 
-export default function Mercado({ aoEnvelope, abrirAtivo }) {
+export default function Mercado({ aoEnvelope, abrirAtivo, logado }) {
   const { dados, erro } = useApi("/mercado", { aoEnvelope });
-  const alertas = useApi("/notificacoes");
+  const alertas = useApi(logado ? "/notificacoes" : null);   // alertas envolvem a carteira
   if (!dados) return erro ? <Erro erro={erro} /> : <Carregando />;
   const ib = dados.ibovespa;
   const m = dados.macro || {};
@@ -37,6 +37,7 @@ export default function Mercado({ aoEnvelope, abrirAtivo }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      {logado && <>
       <h2 className="mt-5 mb-2 text-apagado text-sm">Alertas do dia</h2>
       <ul className="bg-painel border border-borda rounded-lg p-3 space-y-1 text-sm">
         {(alertas.dados || []).length === 0 && <li className="text-apagado">Nenhum alerta agora.</li>}
@@ -45,6 +46,7 @@ export default function Mercado({ aoEnvelope, abrirAtivo }) {
               onClick={() => a.ticker && abrirAtivo(a.ticker)}>{a.texto}</li>
         ))}
       </ul>
+      </>}
       <Aviso />
     </div>
   );

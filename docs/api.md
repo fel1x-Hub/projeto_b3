@@ -4,7 +4,12 @@ API FastAPI local (`uvicorn src.api.main:app`), **única fonte de dados** do app
 
 ## Convenções
 
-- **Autenticação:** `Authorization: Bearer <API_TOKEN>`, com o token no `.env`. Sem token configurado, a API não sobe. Só `/saude` dispensa o token.
+- **Acesso** (pedido do usuário, 02/10/2026):
+  - **Públicos:** mercado, ranking, ação, relatórios, status e sugestões do chat. São dados públicos de mercado.
+  - **Com login:** carteira, notificações, chat e "por quê" (dados pessoais e cota do Gemini).
+  - **Como entrar:** `POST /login {usuario, senha}` devolve uma `sessao` (HMAC, 30 dias) que vai em `Authorization: Bearer <sessao>`. A senha é guardada só como hash PBKDF2, na tabela `usuarios`. O `API_TOKEN` continua aceito, para scripts.
+  - **Limite:** o login aceita 5 tentativas por minuto por IP.
+  - **Gerenciar o usuário:** `python scripts/criar_usuario.py "Nome" [--nuvem]` cria o usuário ou troca a senha.
 - **Envelope:** toda resposta tem a forma abaixo (regra 15).
 
   ```json
@@ -25,6 +30,8 @@ API FastAPI local (`uvicorn src.api.main:app`), **única fonte de dados** do app
 | Método e caminho | O que devolve |
 |---|---|
 | `GET /saude` | `ok` e a versão da API (sem token; usado pelo app para saber se a API está no ar) |
+| `POST /login` | Usuário e senha → sessão de 30 dias |
+| `GET /eu` | Quem está logado (ou visitante) |
 | `GET /status` | Mercado aberto/fechado e horário de cada fonte (cotação do momento, ranking oficial e provisório, relatório, última execução de cada coleta com sucesso/falha) |
 | `GET /mercado` | Cards de Ibovespa (do momento), dólar, Selic e IPCA; top 5 e bottom 5 do ranking em vigor |
 | `GET /ranking?data=&versao=` | Ranking completo: posição, ticker, nome, score, preço e variação do dia, sentimento 21d, volume anormal, se está na carteira |

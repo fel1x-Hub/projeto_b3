@@ -65,6 +65,7 @@ BACKENDS = ["sqlite"] + (["postgres"] if os.getenv("TEST_DATABASE_URL") else [])
 @pytest.fixture(params=BACKENDS)
 def cliente(request, tmp_path, monkeypatch):
     monkeypatch.setenv("API_TOKEN", TOKEN)
+    monkeypatch.setattr(main, "limitador", main.Limitador(dict(main.limitador.limites)))   # zerado a cada teste
     caminho = tmp_path / "api.db"
     conn = conectar(caminho)
     migrar(conn)
@@ -90,10 +91,14 @@ def _conn():
     return nuvem.conectar_api(main.app.state.db_path)
 
 
-def test_saude_sem_token_e_resto_exige_token(cliente):
+def test_mercado_publico_e_parte_pessoal_exige_login(cliente):
     assert cliente.get("/saude").json()["ok"] is True
-    assert cliente.get("/mercado").status_code == 401
-    assert cliente.get("/mercado", headers={"Authorization": "Bearer errado"}).status_code == 401
+    for publico in ("/mercado", "/ranking", "/ativo/PETR4", "/relatorio/ultimo", "/status"):
+        assert cliente.get(publico).status_code == 200, publico
+    for pessoal in ("/carteira", "/notificacoes", "/ativo/PETR4/porque"):
+        assert cliente.get(pessoal).status_code == 401, pessoal
+        assert cliente.get(pessoal, headers={"Authorization": "Bearer errado"}).status_code == 401
+    assert cliente.post("/chat", json={"mensagens": [{"papel": "usuario", "texto": "oi"}]}).status_code == 401
 
 
 def test_envelope_e_ranking(cliente):
@@ -258,3 +263,56 @@ def test_cors_aceita_so_o_site():
     finally:
         del os.environ["API_ORIGENS_REGEX"]
         importlib.reload(main)
+
+
+def _criar_usuario():
+    from src.api import autenticacao
+    conn = _conn()
+    try:
+        autenticacao.gravar_usuario(conn, "Miguel Felix", "senha-de-teste", TS)
+    finally:
+        conn.close()
+
+
+def test_login_com_usuario_e_senha(cliente):
+    _criar_usuario()
+    errado = cliente.post("/login", json={"usuario": "Miguel Felix", "senha": "outra"})
+    assert errado.status_code == 401
+    assert cliente.post("/login", json={"usuario": "ninguem", "senha": "senha-de-teste"}).status_code == 401
+    r = cliente.post("/login", json={"usuario": "  miguel   FELIX ", "senha": "senha-de-teste"})   # nome normalizado
+    assert r.status_code == 200 and r.json()["usuario"] == "miguel felix"
+    sessao = {"Authorization": f"Bearer {r.json()['sessao']}"}
+    assert cliente.get("/carteira", headers=sessao).status_code == 200
+    assert cliente.get("/eu", headers=sessao).json() == {"usuario": "miguel felix", "logado": True}
+    assert cliente.get("/eu").json()["logado"] is False
+    conn = _conn()
+    try:
+        guardado = conn.execute("SELECT senha_hash FROM usuarios").fetchone()[0]
+    finally:
+        conn.close()
+    assert "senha-de-teste" not in guardado and guardado.startswith("pbkdf2_sha256$")
+
+
+def test_visitante_nao_ve_o_que_esta_na_carteira(cliente):
+    cliente.post("/carteira/operacao", headers=H, json={"ticker": "PETR4", "tipo": "compra",
+                 "data": (date.today() - timedelta(days=3)).isoformat(), "quantidade": 1, "preco": 30})
+    assert any(l["na_carteira"] for l in cliente.get("/ranking", headers=H).json()["dados"]["linhas"])
+    assert not any(l["na_carteira"] for l in cliente.get("/ranking").json()["dados"]["linhas"])
+
+
+def test_login_tem_limite_de_tentativas(cliente, monkeypatch):
+    monkeypatch.setattr(main, "limitador", main.Limitador({"geral": 100, "llm": 10, "login": 2}))
+    codigos = [cliente.post("/login", json={"usuario": "x", "senha": "y"}).status_code for _ in range(3)]
+    assert codigos == [401, 401, 429]
+
+
+def test_sessao_expira_e_nao_aceita_assinatura_falsa(monkeypatch):
+    from src.api import autenticacao
+    monkeypatch.setenv("API_TOKEN", "segredo")
+    s = autenticacao.emitir_sessao("Miguel Felix", agora=1000.0, dias=1)
+    assert autenticacao.validar_sessao(s, agora=1000.0 + 3600) == "miguel felix"
+    assert autenticacao.validar_sessao(s, agora=1000.0 + 2 * 86400) is None
+    versao, corpo, _ = s.split(".")
+    assert autenticacao.validar_sessao(f"{versao}.{corpo}.assinaturafalsa", agora=1000.0) is None
+    monkeypatch.setenv("API_TOKEN", "outro")          # trocar o segredo derruba as sessões
+    assert autenticacao.validar_sessao(s, agora=1000.0) is None

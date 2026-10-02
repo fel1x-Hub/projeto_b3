@@ -27,6 +27,29 @@
 
 Se falhar em qualquer um, o v1 continua. Mesmo aprovado, a troca **só acontece com a autorização do usuário**, porque reinicia a contagem do paper trading (que começou em 29/09/2026 com o v1).
 
-## Resultados
+## Resultados (02/10/2026)
 
-(preenchido por `scripts/avaliar_v2.py`)
+| Variação | IC médio | dias IC>0 | t | spread 21d | backtest a.a. | Sharpe | drawdown | giro |
+|---|---|---|---|---|---|---|---|---|
+| A · v1 (referência) | +0.1086 | 83% | +5.58 | +3.60% | +11.3% | -0.01 | -23.9% | 9.3x |
+| B · v1 + restrições monotônicas (candidata) | +0.1224 | 86% | +5.79 | +3.92% | +13.2% | 0.08 | -18.1% | 8.6x |
+| C · B + eventos (só sensibilidade) | +0.1229 | 86% | +5.92 | +4.03% | +17.4% | 0.32 | -15.1% | 9.2x |
+
+### IC médio por ano
+
+| Variação | 2022 | 2023 | 2024 | 2025 | 2026 |
+|---|---|---|---|---|---|
+| A · v1 (referência) | +0.068 | +0.084 | +0.112 | +0.137 | +0.113 |
+| B · v1 + restrições monotônicas (candidata) | +0.168 | +0.093 | +0.129 | +0.144 | +0.107 |
+| C · B + eventos (só sensibilidade) | +0.174 | +0.092 | +0.135 | +0.139 | +0.108 |
+
+### Critério pré-registrado (B contra A)
+
+- ✅ IC médio ≥ v1
+- ✅ spread topo−fundo ≥ v1
+- ✅ IC positivo em todos os anos
+- ✅ retorno anual do backtest (após custos) ≥ v1
+
+**Decisão pelo critério: B aprovado como v2 (aguarda autorização do usuário para trocar).**
+
+C é só sensibilidade (risco de look-ahead do LLM) e não pode virar o modelo, qualquer que seja o resultado.

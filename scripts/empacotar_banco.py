@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import settings  # noqa: E402
 
-PESSOAIS = ("carteira_operacoes", "carteira_sincronizada")
+PESSOAIS = ("carteira_operacoes", "carteira_sincronizada", "usuarios")
 
 
 def empacotar(origem: Path, modelos: Path, destino: Path) -> Path:

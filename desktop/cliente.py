@@ -59,10 +59,23 @@ class ClienteAPI:
             return False
 
     def token_valido(self) -> bool:
+        """Sessão de login (ou API_TOKEN local) aceita pela API."""
         try:
-            return self._http.get("/status", timeout=30).status_code != 401
-        except httpx.HTTPError:
+            r = self._http.get("/eu", timeout=30)
+            return r.status_code == 200 and r.json().get("logado", False)
+        except (httpx.HTTPError, ValueError):
             return False
+
+
+def entrar(url: str, usuario: str, senha: str) -> str:
+    """Faz login e devolve a sessão (a senha não é guardada). Espera o servidor acordar."""
+    r = httpx.post(url.rstrip("/") + "/login", json={"usuario": usuario, "senha": senha}, timeout=120)
+    if r.status_code == 401:
+        raise ErroAPI("usuário ou senha incorretos")
+    if r.status_code == 429:
+        raise ErroAPI("muitas tentativas; espere um minuto")
+    r.raise_for_status()
+    return r.json()["sessao"]
 
 
 def _local(url: str) -> bool:

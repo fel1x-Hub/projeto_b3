@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (QApplication, QDialog, QDialogButtonBox, QFormLay
                                QMainWindow, QMessageBox, QProgressDialog, QTabWidget)
 
 from desktop import telas  # noqa: E402
-from desktop.cliente import ClienteAPI, conectar  # noqa: E402
+from desktop.cliente import ClienteAPI, conectar, entrar  # noqa: E402
 from desktop.comum import AMARELO, VERDE, aplicar_tema, em_segundo_plano, hora  # noqa: E402
 
 INTERVALO_ABERTO_MS = 60_000
@@ -105,7 +105,7 @@ def configuracao() -> tuple[str, str]:
 
 
 class DialogoConexao(QDialog):
-    """URL da API (nuvem) e token. Ficam nas configurações do usuário do Windows (sem administrador)."""
+    """Endereço da API e login. Guarda só o endereço e a sessão (nunca a senha) nas configurações do usuário."""
 
     def __init__(self, parent=None, mensagem: str = ""):
         super().__init__(parent)
@@ -115,20 +115,38 @@ class DialogoConexao(QDialog):
             aviso = QLabel(mensagem)
             aviso.setWordWrap(True)
             form.addRow(aviso)
-        url, token = configuracao()
-        self.url = QLineEdit(url, placeholderText="https://projeto-b3.onrender.com")
-        self.token = QLineEdit(token, echoMode=QLineEdit.Password, placeholderText="API_TOKEN")
+        url, _ = configuracao()
+        self.url = QLineEdit(url or "https://projeto-b3-api.onrender.com")
+        self.usuario = QLineEdit(placeholderText="Usuário")
+        self.senha = QLineEdit(echoMode=QLineEdit.Password, placeholderText="Senha")
+        self.erro = QLabel("")
+        self.erro.setStyleSheet("color: #f85149;")
         form.addRow("Endereço da API", self.url)
-        form.addRow("Token", self.token)
+        form.addRow("Usuário", self.usuario)
+        form.addRow("Senha", self.senha)
+        form.addRow(self.erro)
         botoes = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
         botoes.accepted.connect(self._salvar)
         botoes.rejected.connect(self.reject)
         form.addRow(botoes)
 
     def _salvar(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QGuiApplication
+        url = self.url.text().strip()
+        self.erro.setText("Entrando… (o servidor grátis pode levar ~1 min para acordar)")
+        QGuiApplication.setOverrideCursor(Qt.WaitCursor)
+        QApplication.processEvents()
+        try:
+            sessao = entrar(url, self.usuario.text(), self.senha.text())
+        except Exception as e:  # noqa: BLE001 - mostra o motivo no próprio diálogo
+            self.erro.setText(f"Não deu para entrar: {e}")
+            return
+        finally:
+            QGuiApplication.restoreOverrideCursor()
         s = QSettings("ProjetoB3", "app")
-        s.setValue("api/url", self.url.text().strip())
-        s.setValue("api/token", self.token.text().strip())
+        s.setValue("api/url", url)
+        s.setValue("api/token", sessao)
         self.accept()
 
 
@@ -153,9 +171,9 @@ def abrir_conexao(app) -> ClienteAPI | None:
         cliente = resultado["c"]
         if cliente and cliente.token_valido():
             return cliente
-        motivo = ("O token foi recusado pela API." if cliente else
+        motivo = ("Entre com seu usuário e senha." if cliente else
                   "Nenhuma API respondeu (nem a configurada, nem uma local em 127.0.0.1:8000).")
-        if DialogoConexao(None, motivo + " Confira o endereço e o token.").exec() != QDialog.Accepted:
+        if DialogoConexao(None, motivo).exec() != QDialog.Accepted:
             return None
 
 

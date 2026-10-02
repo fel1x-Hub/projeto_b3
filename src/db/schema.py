@@ -423,3 +423,13 @@ CREATE TABLE relatorios (
     {_ts("gerado_em")}
 );
 """
+
+
+SCHEMA_V11 = f"""
+-- Login por usuário e senha (etapa 8). Só o hash PBKDF2 da senha, nunca o texto.
+CREATE TABLE usuarios (
+    usuario       TEXT PRIMARY KEY,          -- normalizado (minúsculas, espaços simples)
+    senha_hash    TEXT NOT NULL,
+    {_ts("criado_em")}
+);
+"""

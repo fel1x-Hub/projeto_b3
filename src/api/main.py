@@ -22,7 +22,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, field_validator
 
-from src.api import assistente, consultas, notificacoes
+from src.api import assistente, autenticacao, consultas, notificacoes
 from src.carteira import importar as importador
 from src.carteira import servico
 from src.db import schema_nuvem
@@ -80,7 +80,8 @@ class Limitador:
             return True
 
 
-limitador = Limitador({"geral": int(os.getenv("API_LIMITE_MIN", "180")), "llm": int(os.getenv("API_LIMITE_LLM_MIN", "10"))})
+limitador = Limitador({"geral": int(os.getenv("API_LIMITE_MIN", "180")), "llm": int(os.getenv("API_LIMITE_LLM_MIN", "10")),
+                       "login": int(os.getenv("API_LIMITE_LOGIN_MIN", "5"))})   # dificulta adivinhar a senha
 
 
 @app.middleware("http")
@@ -89,16 +90,28 @@ async def _limitar(request: Request, chamar):
     if caminho in ("/saude", "/health"):
         return await chamar(request)
     ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "?")
-    grupo = "llm" if caminho == "/chat" or caminho.endswith("/porque") else "geral"
+    grupo = ("login" if caminho == "/login" else
+             "llm" if caminho == "/chat" or caminho.endswith("/porque") else "geral")
     if not limitador.permitir(ip, grupo):
         return JSONResponse({"detail": "muitas requisições; tente de novo em instantes"}, status_code=429)
     return await chamar(request)
 
 
-def autenticar(cred: HTTPAuthorizationCredentials | None = Security(_bearer)) -> None:
+def quem(cred: HTTPAuthorizationCredentials | None = Security(_bearer)) -> str | None:
+    """Usuário da requisição: sessão de login válida, ou o API_TOKEN (scripts); None = visitante."""
+    if cred is None:
+        return None
     esperado = os.getenv("API_TOKEN", "")
-    if cred is None or not esperado or not secrets.compare_digest(cred.credentials, esperado):
-        raise HTTPException(401, "token ausente ou inválido (Authorization: Bearer <API_TOKEN>)")
+    if esperado and secrets.compare_digest(cred.credentials, esperado):
+        return "api_token"
+    return autenticacao.validar_sessao(cred.credentials)
+
+
+def autenticar(usuario: str | None = Depends(quem)) -> str:
+    """Carteira, chat e 'por quê' exigem login (dados pessoais e cota do Gemini)."""
+    if usuario is None:
+        raise HTTPException(401, "entre com usuário e senha para usar esta parte")
+    return usuario
 
 
 def banco():
@@ -144,7 +157,25 @@ def saude():
     return {"ok": True, "versao": VERSAO_API}
 
 
-@app.get("/status", tags=["sistema"], dependencies=protegido)
+class Login(BaseModel):
+    usuario: str = Field(min_length=1, max_length=100)
+    senha: str = Field(min_length=1, max_length=200)
+
+
+@app.post("/login", tags=["sistema"])
+def login(dados: Login, conn=Depends(banco)):
+    nome = autenticacao.autenticar_usuario(conn, dados.usuario, dados.senha)
+    if nome is None:
+        raise HTTPException(401, "usuário ou senha incorretos")
+    return {"sessao": autenticacao.emitir_sessao(nome), "usuario": nome, "validade_dias": autenticacao.VALIDADE_DIAS}
+
+
+@app.get("/eu", tags=["sistema"])
+def eu(usuario: str | None = Depends(quem)):
+    return {"usuario": usuario, "logado": usuario is not None}
+
+
+@app.get("/status", tags=["sistema"])
 def status(conn=Depends(banco)):
     oficial = consultas.ranking_em_vigor(conn, "oficial")
     vigor = consultas.ranking_em_vigor(conn)
@@ -157,7 +188,7 @@ def status(conn=Depends(banco)):
                     agora_utc_iso(), bool(vigor and vigor["provisorio"]))
 
 
-@app.get("/mercado", tags=["mercado"], dependencies=protegido)
+@app.get("/mercado", tags=["mercado"])
 def mercado(conn=Depends(banco)):
     vigor = consultas.ranking_em_vigor(conn)
     tabela = consultas.tabela_ranking(conn, vigor)
@@ -169,8 +200,9 @@ def mercado(conn=Depends(banco)):
                     bool((ibov and ibov["provisorio"]) or (vigor and vigor["provisorio"])))
 
 
-@app.get("/ranking", tags=["mercado"], dependencies=protegido)
-def ranking(data: date | None = None, versao: Literal["vigor", "oficial"] = "vigor", conn=Depends(banco)):
+@app.get("/ranking", tags=["mercado"])
+def ranking(data: date | None = None, versao: Literal["vigor", "oficial"] = "vigor", conn=Depends(banco),
+            usuario: str | None = Depends(quem)):
     if data:
         vigor = {"data": data.isoformat(), "versao": consultas.OFICIAL, "provisorio": False,
                  "atualizado_em": conn.execute("SELECT MAX(disponivel_em) FROM ranking WHERE data = ? AND versao_modelo = ?",
@@ -181,14 +213,14 @@ def ranking(data: date | None = None, versao: Literal["vigor", "oficial"] = "vig
         vigor = consultas.ranking_em_vigor(conn, None if versao == "vigor" else "oficial")
         if vigor is None:
             raise HTTPException(404, "nenhum ranking gerado ainda")
-    tenho = {p["ticker"] for p in servico.montar(conn)["posicoes"]}
+    tenho = {p["ticker"] for p in servico.montar(conn)["posicoes"]} if usuario else set()   # carteira é pessoal
     return envelope({"ranking": vigor, "linhas": consultas.tabela_ranking(conn, vigor, tenho)},
                     vigor["atualizado_em"], vigor["provisorio"])
 
 
 # ---------------------------------------------------------------- ativo
 
-@app.get("/ativo/{ticker}", tags=["ativo"], dependencies=protegido)
+@app.get("/ativo/{ticker}", tags=["ativo"])
 def ativo(ticker: str, dias: int = Query(365, ge=5, le=365 * 5), conn=Depends(banco)):
     t = _ticker(conn, ticker)
     cad = conn.execute("SELECT nome, setor, cnpj FROM ativos WHERE ticker = ?", (t,)).fetchone()
@@ -228,13 +260,13 @@ def ativo_porque(ticker: str, conn=Depends(banco)):
 
 # ---------------------------------------------------------------- relatório
 
-@app.get("/relatorios", tags=["relatório"], dependencies=protegido)
+@app.get("/relatorios", tags=["relatório"])
 def relatorios(conn=Depends(banco)):
     datas = [r[0] for r in conn.execute("SELECT data FROM relatorios ORDER BY data DESC")]
     return envelope(datas, None)
 
 
-@app.get("/relatorio/{data}", tags=["relatório"], dependencies=protegido)
+@app.get("/relatorio/{data}", tags=["relatório"])
 def relatorio(data: str, conn=Depends(banco)):
     datas = [r[0] for r in conn.execute("SELECT data FROM relatorios ORDER BY data")]
     if data == "ultimo":
@@ -391,6 +423,6 @@ SUGESTOES = ["Como está minha carteira hoje?", "Por que a primeira do ranking e
              "Resuma o relatório do dia."]
 
 
-@app.get("/chat/sugestoes", tags=["chat"], dependencies=protegido)
+@app.get("/chat/sugestoes", tags=["chat"])
 def chat_sugestoes():
     return envelope(SUGESTOES, None)

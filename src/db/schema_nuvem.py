@@ -80,6 +80,9 @@ CREATE TABLE IF NOT EXISTS relatorios (
 CREATE TABLE IF NOT EXISTS publicacoes (
     tabela TEXT PRIMARY KEY, publicado_em TEXT NOT NULL, linhas INTEGER NOT NULL);
 
+CREATE TABLE IF NOT EXISTS usuarios (
+    usuario TEXT PRIMARY KEY, senha_hash TEXT NOT NULL, criado_em TEXT NOT NULL);
+
 -- Só a API escreve aqui (dados pessoais: nunca vão para o repositório público)
 CREATE TABLE IF NOT EXISTS carteira_operacoes (
     id BIGSERIAL PRIMARY KEY, ticker TEXT NOT NULL, tipo TEXT NOT NULL CHECK (tipo IN ('compra', 'venda')),
