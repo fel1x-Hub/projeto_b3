@@ -22,3 +22,7 @@ __pycache__/
 
 # Saídas geradas todo dia pelo pipeline
 relatorios/
+
+# Frontend (etapa 7)
+node_modules/
+frontend/dist/

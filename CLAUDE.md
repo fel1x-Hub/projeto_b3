@@ -33,7 +33,7 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 | 4 | Modelo de ranking | [etapas/etapa4.md](etapas/etapa4.md) | ✅ concluída |
 | 5 | Backtest e paper trading | [etapas/etapa5.md](etapas/etapa5.md) | 🔨 paper trading em andamento (backtest ✅) |
 | 6 | Relatório diário | [etapas/etapa6.md](etapas/etapa6.md) | ✅ concluída |
-| 7 | Interface (dashboard + chat IA + carteira) | [etapas/etapa7.md](etapas/etapa7.md) | 🔨 em andamento |
+| 7 | Interface (dashboard + chat IA + carteira) | [etapas/etapa7.md](etapas/etapa7.md) | ✅ concluída |
 | 8 | Deploy (desktop .exe + web gratuito) | [etapas/etapa8.md](etapas/etapa8.md) | ⏳ pendente |
 
 Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
@@ -82,22 +82,12 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Dias perdidos (PC desligado ou em espera) são preenchidos sozinhos no pipeline seguinte: ranking oficial e relatório de cada pregão pendente. O paper trading depende disso, porque rebalanceia a cada 10 datas de ranking.
 - A cota grátis do Gemini é compartilhada entre eventos, relatório e (etapa 7) chat. Se faltar, o relatório tem prioridade: o passo de eventos vem antes no pipeline, mas para sozinho no 429 sem gravar erro.
 
-**Etapa 7 — interface (regra 15: sempre atualizada)**
-- Duas interfaces sobre a MESMA API: **site em React** e **app desktop em Qt (PySide6)**.
-  - As duas se atualizam sozinhas: polling curto ou SSE no site; `QTimer` no Qt.
-  - Mostram "atualizado às HH:MM" e o selo de provisório.
-  - Começar pela API e pelo app Qt, que o usuário vai usar no dia a dia; depois o site.
-- API FastAPI com `atualizado_em` em cada resposta.
-- React com telas que se atualizam sozinhas: mercado, ranking, detalhe da ação ao vivo, relatório, carteira e chat. Selo de provisório no que é intradiário.
-- Carteira real (regra 16): integração pelo **Meu Pluggy** (Open Finance, grátis para uso pessoal).
-  - 🙋 O usuário cria a conta em meu.pluggy.ai, conecta a XP e gera as credenciais em dashboard.pluggy.ai, que vão para o `.env`.
-  - Alternativa: importar o extrato da XP.
-- Telas de indicação:
-  - "o que comprar": top 30 que não está na carteira;
-  - "o que vender": ações da carteira que caíram no ranking;
-  - "por quê": contribuição de cada sinal (pred_contrib do LightGBM) e texto do LLM baseado só nesses números.
-- 🟢 Chat de IA com Gemini, com contexto montado pelo backend.
-- Instalar Node.js na máquina.
+**Etapa 7: concluída.** A API está em `docs/api.md`. O app Qt fica em `desktop/` e o site React em `frontend/`, os dois com as mesmas telas e consumindo a mesma API.
+- Atualização sozinha (1 min com pregão aberto, 5 min com ele fechado), "dados de HH:MM" e selo PROVISÓRIO. Se a API falhar, a tela mantém o último dado válido.
+- Carteira: as posições são recalculadas das operações. Entram por operação manual, pelo extrato da Área do Investidor da B3 (cobre a XP) ou pelo Meu Pluggy. Indicações: comprar = top 30 fora da carteira; observar = 31 a 60; considerar vender = abaixo de 60.
+- Chat e "por quê" com Gemini: o contexto é montado pelo backend e os números são conferidos (regras 2 e 12).
+- 🙋 Pendente do usuário: credenciais do Meu Pluggy no `.env`. Só dá para conectar a XP durante os 15 dias de trial da conta pluggy.ai. Sem elas, a carteira funciona por extrato ou à mão.
+- Melhorias possíveis: separar o pacote do site em partes menores; no app, um gráfico de preço com candles.
 
 **Etapa 8 — deploy**
 - 🙋 Hospedagem de backend, banco e frontend (apresentar opções, regra 13). O usuário cria as contas.
@@ -192,6 +182,8 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Agendador contínuo: `python scripts/agendador.py`; no Windows: `powershell -ExecutionPolicy Bypass -File scripts\instalar_agendador.ps1 [-Remover]`
 - Testes: `pytest`
 - Dev local (backend): `uvicorn src.api.main:app --reload`
-- Dev local (frontend): `cd frontend && npm run dev`
+- Dev local (frontend): `cd frontend && npm run dev` (http://127.0.0.1:5173; proxy /api → 127.0.0.1:8000) · testes: `cd frontend && npm test`
+- Node.js: portátil em `%LOCALAPPDATA%
+ode` (v24 LTS, no PATH do usuário). O usuário não tem administrador no PC, então nada de instaladores .msi
 - App desktop (Qt): `python desktop/main.py` (sobe a API embutida se preciso) · atalho: `powershell -ExecutionPolicy Bypass -File scripts\criar_atalho.ps1` · build .exe: etapa 8
 - API: `uvicorn src.api.main:app --host 127.0.0.1` (use 127.0.0.1, não localhost: no Windows localhost custa ~2 s por chamada) · endpoints em `docs/api.md`

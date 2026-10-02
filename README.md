@@ -103,6 +103,19 @@ O ganho "ao vivo" é a quantidade × a cotação do momento (~15 min de atraso).
 
 Cada indicação mostra o "por quê" (os sinais que mais pesaram). **Não é recomendação de investimento.**
 
+## Site (React)
+
+Precisa de Node.js 20+. Sem acesso de administrador, use a versão portátil: baixe o `.zip` "Windows x64" em nodejs.org/en/download, extraia em `%LOCALAPPDATA%
+ode` e coloque essa pasta no PATH do seu usuário. Feito isso:
+
+```bash
+uvicorn src.api.main:app --host 127.0.0.1     # a API (ou deixe o app desktop aberto, que já a sobe)
+cd frontend && npm install && npm run dev     # abre em http://127.0.0.1:5173
+cd frontend && npm test                       # testes dos componentes
+```
+
+Na primeira vez, o site pede o `API_TOKEN` do `.env`, que fica guardado só naquele navegador. As telas e a atualização automática são as mesmas do app desktop, e as duas interfaces leem a mesma API.
+
 ## Relatório diário
 
 Fica em `relatorios/AAAA-MM-DD.md`. Os números são todos calculados em código ([src/relatorio/insumos.py](src/relatorio/insumos.py)), e o Gemini só redige o texto. Uma checagem automática confere cada número do texto contra os insumos. Se o relatório citar número sem origem, é refeito uma vez; se persistir, vai para `relatorios/rejeitados/` e não é publicado. Os insumos de cada dia ficam em `relatorios/insumos/` para auditoria.
