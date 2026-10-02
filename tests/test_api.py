@@ -242,3 +242,19 @@ def test_limite_devolve_429(cliente, monkeypatch):
 def test_fatos_relevantes_aparecem_na_acao(cliente):
     fatos = cliente.get("/ativo/PETR4", headers=H).json()["dados"]["fatos_relevantes"]
     assert fatos and fatos[0]["resumo"] == "Paga dividendos" and fatos[0]["data"] == "2026-09-29"
+
+
+def test_cors_aceita_so_o_site():
+    import importlib
+    os.environ["API_ORIGENS_REGEX"] = r"^https://projeto-b3[a-z0-9-]*\.vercel\.app$"
+    try:
+        m = importlib.reload(main)        # o middleware lê o ambiente ao montar o app
+        c = TestClient(m.app)
+        ok = c.options("/saude", headers={"Origin": "https://projeto-b3-git-main-fulano.vercel.app",
+                                          "Access-Control-Request-Method": "GET"})
+        assert ok.headers.get("access-control-allow-origin") == "https://projeto-b3-git-main-fulano.vercel.app"
+        ruim = c.options("/saude", headers={"Origin": "https://malicioso.com", "Access-Control-Request-Method": "GET"})
+        assert "access-control-allow-origin" not in ruim.headers
+    finally:
+        del os.environ["API_ORIGENS_REGEX"]
+        importlib.reload(main)

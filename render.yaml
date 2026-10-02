@@ -20,8 +20,10 @@ services:
         sync: false
       - key: GEMINI_API_KEY       # chat e "por quê"
         sync: false
-      - key: API_ORIGENS          # endereço do site no Vercel (CORS), ex.: https://projeto-b3.vercel.app
-        sync: false
+      - key: API_ORIGENS_REGEX    # CORS: qualquer endereço do projeto projeto-b3 no Vercel
+        value: '^https://projeto-b3[a-z0-9-]*\.vercel\.app$'
+      - key: API_ORIGENS          # opcional: domínio próprio do site (lista separada por vírgula)
+        value: ""
       - key: PLUGGY_CLIENT_ID     # opcional: botão "Sincronizar XP"
         sync: false
       - key: PLUGGY_CLIENT_SECRET

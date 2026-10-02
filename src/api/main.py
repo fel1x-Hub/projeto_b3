@@ -54,7 +54,11 @@ async def _ciclo_de_vida(app: FastAPI):
 app = FastAPI(title="Projeto B3", version=VERSAO_API, lifespan=_ciclo_de_vida,
               description="Ranking, sinais, carteira e chat. Material de apoio, não recomendação de investimento.")
 app.state.db_path = None   # None = DATABASE_URL (Postgres) ou o SQLite padrão; testes trocam
-app.add_middleware(CORSMiddleware, allow_origins=os.getenv("API_ORIGENS", "http://localhost:5173").split(","),
+# CORS (etapa 8.6): só o site. API_ORIGENS = lista exata; API_ORIGENS_REGEX = padrão (ex.: os
+# endereços do projeto no Vercel, que mudam a cada deploy de prévia). O token continua obrigatório.
+app.add_middleware(CORSMiddleware,
+                   allow_origins=[o for o in os.getenv("API_ORIGENS", "http://localhost:5173,http://127.0.0.1:5173").split(",") if o],
+                   allow_origin_regex=os.getenv("API_ORIGENS_REGEX") or None,
                    allow_methods=["*"], allow_headers=["*"])
 
 
