@@ -17,7 +17,23 @@ permissions:
   actions: write       # manter os agendamentos ativos (keep-alive)
 
 jobs:
+  verificar:
+    # Sem banco no cache (antes de "Inicializar nuvem"), o ciclo é pulado em vez de falhar.
+    runs-on: ubuntu-latest
+    outputs:
+      pronto: ${{ steps.banco.outputs.cache-matched-key != '' }}
+    steps:
+      - id: banco
+        uses: actions/cache/restore@v4
+        with:
+          path: data/b3.db
+          key: banco-v1-${{ github.run_id }}
+          restore-keys: banco-v1-
+          lookup-only: true
+
   pipeline:
+    needs: verificar
+    if: needs.verificar.outputs.pronto == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     env:
