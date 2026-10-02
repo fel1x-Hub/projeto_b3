@@ -86,7 +86,7 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Atualização sozinha (1 min com pregão aberto, 5 min com ele fechado), "dados de HH:MM" e selo PROVISÓRIO. Se a API falhar, a tela mantém o último dado válido.
 - Carteira: as posições são recalculadas das operações. Entram por operação manual, pelo extrato da Área do Investidor da B3 (cobre a XP) ou pelo Meu Pluggy. Indicações: comprar = top 30 fora da carteira; observar = 31 a 60; considerar vender = abaixo de 60.
 - Chat e "por quê" com Gemini: o contexto é montado pelo backend e os números são conferidos (regras 2 e 12).
-- 🙋 Pendente do usuário: credenciais do Meu Pluggy no `.env`. Só dá para conectar a XP durante os 15 dias de trial da conta pluggy.ai. Sem elas, a carteira funciona por extrato ou à mão.
+- 🙋 Meu Pluggy **adiado pelo usuário (02/10/2026)**; não insistir até ele retomar. Pendente: credenciais do Meu Pluggy no `.env`. Só dá para conectar a XP durante os 15 dias de trial da conta pluggy.ai. Sem elas, a carteira funciona por extrato ou à mão.
 - Melhorias possíveis: separar o pacote do site em partes menores; no app, um gráfico de preço com candles.
 
 **Etapa 8 — deploy (em andamento).** Decisão do usuário (02/10/2026): **tudo grátis, sem cartão**. Roteiro em `DEPLOY.md`.
