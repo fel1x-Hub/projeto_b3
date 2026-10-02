@@ -75,10 +75,11 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Paper trading desde 29/09/2026 (`scripts/paper_trading.py`). Rodar todo pregão, o que a etapa 6 automatiza. Concluir só depois de semanas.
 - Candidata para depois de observar: regra com folga (top 60), com metade do giro. Não trocar agora.
 
-**Etapa 6 — relatório diário e agendamento contínuo (regra 15)**
-- ✅ Fonte de cotação intradiária (decisão do usuário, 30/09/2026): **yfinance grátis, ~16 min de atraso** (medido: uma consulta cobre todas as ações e o ^BVSP em ~3 s). Isolada num módulo, para trocar por paga depois (brapi Pro: ~5 min por R$ 117/mês).
-- 🟢 LLM do relatório: Gemini grátis. Checagem automática de que todo número do texto confere com os dados.
-- Agendador contínuo: ciclo de ~15 min no pregão (cotação, notícias, sinais e score provisórios) e pipeline completo depois do arquivo da B3 (~21h).
+**Etapa 6: concluída.** Relatório com checagem de números, pipeline diário, ciclo intradiário e agendador (instruções no README).
+- Cotação intradiária (decisão do usuário, 30/09/2026): **yfinance grátis, ~16 min de atraso**. Isolada em `src/coleta/intradiario.py` para trocar por fonte paga depois (brapi Pro: ~5 min por R$ 117/mês).
+- LLM do relatório: Gemini grátis, que só redige. Número sem origem → refaz uma vez → `relatorios/rejeitados/`.
+- Agendador local registrado no Windows (tarefa `ProjetoB3-Agendador`, 30/09/2026): ciclo intradiário a cada 15 min no pregão e `rodar_diario.py` às 21h30. Só roda com o PC ligado; vai para a nuvem na etapa 8.
+- A cota grátis do Gemini é compartilhada entre eventos, relatório e (etapa 7) chat. Se faltar, o relatório tem prioridade: o passo de eventos vem antes no pipeline, mas para sozinho no 429 sem gravar erro.
 
 **Etapa 7 — interface (regra 15: sempre atualizada)**
 - Duas interfaces sobre a MESMA API: **site em React** e **app desktop em Qt (PySide6)**.
@@ -184,6 +185,10 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Avaliar modelo vs baselines (walk-forward): `python scripts/avaliar_ranking.py`
 - Backtest da regra da carteira: `python scripts/backtest.py`
 - Paper trading (todo pregão, depois de coletar e gerar sinais): `python scripts/paper_trading.py`
+- Pipeline diário completo (um comando): `python scripts/rodar_diario.py`
+- Ciclo intradiário (cotação ~15 min de atraso + ranking provisório): `python scripts/ciclo_intradiario.py [--forcar]`
+- Relatório diário: `python scripts/gerar_relatorio.py [--data AAAA-MM-DD | --ultimos N]` → `relatorios/`
+- Agendador contínuo: `python scripts/agendador.py`; no Windows: `powershell -ExecutionPolicy Bypass -File scripts\instalar_agendador.ps1 [-Remover]`
 - Testes: `pytest`
 - Dev local (backend): `uvicorn src.api.main:app --reload`
 - Dev local (frontend): `cd frontend && npm run dev`

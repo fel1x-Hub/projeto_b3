@@ -53,4 +53,39 @@ def test_rejeita_se_persistir():
 
 def test_explicacao_de_fator():
     assert descricoes.explicar("fund_lp", 0.92, 0.01) == "lucro/preço muito alto (percentil 92 do universo): favorece"
-    assert descricoes.explicar("vol_63d", 0.1, -0.02).endswith("pesa contra")
+    assert descricoes.explicar("vol_63d", 0.1, -0.02) == "volatilidade de 3 meses muito baixa (percentil 10 do universo): pesa contra"
+    assert descricoes.explicar("fund_margem_ebitda", 0.5, 0.01).startswith("margem EBITDA mediana")
+    assert descricoes.explicar("fund_roe", None, 0.01) == "ROE sem dado: favorece"
+
+
+def _base_montar(conn):
+    from datetime import date
+    ts = "2026-09-24T22:00:00+00:00"
+    with conn:
+        conn.execute("UPDATE ativos SET codigo_cvm = '9512' WHERE ticker = 'PETR4'")
+        conn.execute("INSERT INTO ranking VALUES ('2026-09-24', 'PETR4', 0.6, 1, 'lgbm-v1', ?, ?)", (ts, ts))
+        # Fato entregue em 22/09 às 23:59:59 BRT = 23/09 02:59:59 UTC.
+        conn.execute("INSERT INTO documentos (id, tipo, ticker, fonte, id_externo, url, disponivel_em, coletado_em) "
+                     "VALUES (1, 'Fato Relevante', 'PETR4', 'cvm_ipe', 'x', 'http://x', "
+                     "'2026-09-23T02:59:59+00:00', ?)", (ts,))
+        conn.execute("INSERT INTO eventos_documentos VALUES (1, 'm', 1, 'dividendos', 'positiva', 3, 'Paga dividendos', ?)",
+                     (ts,))
+        conn.execute("INSERT INTO paper_config VALUES ('inicio', '2026-09-29')")
+    return date(2026, 9, 24)
+
+
+def test_montar_nao_mostra_o_futuro_e_usa_data_de_brasilia(conn):
+    from src.relatorio.insumos import montar
+    entrada = montar(conn, _base_montar(conn))
+    assert entrada["paper_trading"] == "ainda não havia começado nesta data"
+    assert entrada["topo"][0]["fatos_relevantes"][0]["data"] == "2026-09-22"
+
+
+def test_montar_paper_iniciado_sem_pregao_completo(conn):
+    from datetime import date
+    from src.relatorio.insumos import montar
+    _base_montar(conn)
+    with conn:
+        conn.execute("UPDATE paper_config SET valor = '2026-09-24'")
+    assert montar(conn, date(2026, 9, 24))["paper_trading"] == {
+        "inicio": "2026-09-24", "retorno_acumulado": "sem pregão completo ainda"}

@@ -19,25 +19,32 @@ NOMES = {
 }
 
 
+# Sinais de nome feminino, para a concordância ("volatilidade baixa").
+FEMININOS = {"vol_21d", "vol_63d", "dist_mm21", "dist_mm50", "dist_mm200",
+             "fund_margem_liq", "fund_margem_ebitda", "fund_divliq_ebitda"}
+
+
 def nome(sinal: str) -> str:
     return NOMES.get(sinal, sinal)
 
 
-def nivel(percentil: float | None) -> str:
+def nivel(percentil: float | None, feminino: bool = False) -> str:
     if percentil is None:
         return "sem dado"
     if percentil >= 0.8:
-        return "muito alto"
-    if percentil >= 0.6:
-        return "alto"
-    if percentil > 0.4:
-        return "mediano"
-    if percentil > 0.2:
-        return "baixo"
-    return "muito baixo"
+        texto = "muito alto"
+    elif percentil >= 0.6:
+        texto = "alto"
+    elif percentil > 0.4:
+        texto = "mediano"
+    elif percentil > 0.2:
+        texto = "baixo"
+    else:
+        texto = "muito baixo"
+    return texto[:-1] + "a" if feminino else texto
 
 
 def explicar(sinal: str, percentil: float | None, contribuicao: float) -> str:
     efeito = "favorece" if contribuicao > 0 else "pesa contra"
     pct = f" (percentil {round(percentil * 100)} do universo)" if percentil is not None else ""
-    return f"{nome(sinal)} {nivel(percentil)}{pct}: {efeito}"
+    return f"{nome(sinal)} {nivel(percentil, sinal in FEMININOS)}{pct}: {efeito}"

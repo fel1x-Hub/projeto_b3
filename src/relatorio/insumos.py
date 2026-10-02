@@ -6,8 +6,9 @@ aparece nestes insumos.
 """
 
 import sqlite3
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
+from src.db.tempo import FUSO_B3
 from src.ranking import gerar
 from src.sinais import descricoes
 
@@ -21,6 +22,11 @@ def pct(x: float | None, casas: int = 2, sinal: bool = True) -> str | None:
 
 def num(x: float | None, casas: int = 2) -> str | None:
     return None if x is None else f"{x:.{casas}f}".replace(".", ",")
+
+
+def _data_brt(iso_utc: str) -> str:
+    """Data de Brasília de um timestamp UTC (entrega às 23:59 BRT já é o dia seguinte em UTC)."""
+    return datetime.fromisoformat(iso_utc).astimezone(FUSO_B3).date().isoformat()
 
 
 def _retorno_bova(conn, dia: date, dias: int) -> float | None:
@@ -56,7 +62,7 @@ def _acoes(conn, dia: date, versao: str, tickers: list[str], ranking: dict) -> l
             "LEFT JOIN sentimento_noticias s ON s.noticia_id = n.id WHERE na.ticker = ? "
             "AND n.disponivel_em BETWEEN ? AND ? ORDER BY n.disponivel_em DESC LIMIT 3",
             (t, inicio_noticias, f"{dia.isoformat()}T22:00:00+00:00"))]
-        eventos = [{"data": e[0][:10], "tipo": e[1], "direcao": e[2], "resumo": e[3]} for e in conn.execute(
+        eventos = [{"data": _data_brt(e[0]), "tipo": e[1], "direcao": e[2], "resumo": e[3]} for e in conn.execute(
             "SELECT d.disponivel_em, e.tipo_evento, e.direcao, e.resumo FROM eventos_documentos e "
             "JOIN documentos d ON d.id = e.documento_id JOIN ativos a ON a.codigo_cvm = "
             "(SELECT codigo_cvm FROM ativos WHERE ticker = ?) AND a.ticker = d.ticker "
@@ -86,6 +92,11 @@ def montar(conn: sqlite3.Connection, dia: date, versao: str = gerar.VERSAO_MODEL
     paper = conn.execute("SELECT valor FROM paper_patrimonio WHERE data <= ? ORDER BY data DESC LIMIT 1",
                          (dia.isoformat(),)).fetchone()
     inicio_paper = conn.execute("SELECT valor FROM paper_config WHERE chave = 'inicio'").fetchone()
+    if not inicio_paper or inicio_paper[0] > dia.isoformat():
+        paper_trading = "ainda não havia começado nesta data"  # relatório de data passada não vê o futuro
+    else:
+        paper_trading = {"inicio": inicio_paper[0],
+                         "retorno_acumulado": pct(paper[0] - 1) if paper else "sem pregão completo ainda"}
     return {
         "data": dia.isoformat(),
         "acoes_no_universo": len(ordem),
@@ -95,8 +106,7 @@ def montar(conn: sqlite3.Connection, dia: date, versao: str = gerar.VERSAO_MODEL
         "topo": _acoes(conn, dia, versao, ordem[:n], ranking),
         "fundo": _acoes(conn, dia, versao, ordem[-n:], ranking),
         "top30_mudancas": {"desde": anterior_data, "entraram": entraram, "sairam": sairam},
-        "paper_trading": {"inicio": inicio_paper[0] if inicio_paper else None,
-                          "retorno_acumulado": pct(paper[0] - 1) if paper else None},
+        "paper_trading": paper_trading,
         "contexto_validacao": "No backtest (10/2022 a 09/2026) a regra top 30 rendeu +12,4% ao ano, "
                               "contra Ibovespa +12,8% e CDI +13,1%: sem vantagem comprovada após custos.",
     }
