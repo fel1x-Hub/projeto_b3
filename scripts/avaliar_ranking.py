@@ -63,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
     previsoes = {}
     for nome, colunas, h in VARIACOES:
         logger.info("Variação: %s", nome)
-        previsoes[nome] = (modelo.walk_forward(X, alvos[h], colunas), h)
+        previsoes[nome] = (modelo.walk_forward(X, alvos[h], colunas, modelo.RESTRICOES), h)
     principal, _ = previsoes[VARIACOES[0][0]]
     inicio = principal["data"].min()
 
@@ -113,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     alvo21 = alvos[21]
     treino = alvo21.merge(X.reset_index(), on=["data", "ticker"])
     treino["y"] = modelo.alvo_de_treino(treino)
-    final = modelo.treinar(treino[dados.FEATURES_BASE], treino["y"])
+    final = modelo.treinar(treino[dados.FEATURES_BASE], treino["y"], modelo.RESTRICOES)
     ultimo = X.xs(X.index.get_level_values("data").max(), level="data")
     imp = modelo.importancia(final, ultimo[dados.FEATURES_BASE])
     md += ["### Sinais que mais pesam no modelo principal (último pregão)", "",

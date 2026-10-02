@@ -1,0 +1,61 @@
+name: Recalibrar
+
+# Semanal (sábado 9h UTC) e sob demanda: refaz o histórico fora da amostra do
+# modelo em uso (walk-forward), a calibração das previsões por prazo e o efeito
+# dos padrões gráficos; gera rankings oficiais pendentes e atualiza o paper
+# trading. Também é o que coloca uma versão nova do modelo no ar.
+on:
+  schedule:
+    - cron: "0 9 * * 6"
+  workflow_dispatch:
+
+concurrency:
+  group: banco
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  recalibrar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      LOG_LEVEL: INFO
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/preparar
+
+      - name: Rankings oficiais pendentes (e o modelo do ranking provisório)
+        run: python scripts/gerar_ranking.py
+
+      - name: Histórico fora da amostra (walk-forward)
+        run: python scripts/avaliar_ranking.py
+
+      - name: Calibração das previsões e efeito dos padrões gráficos
+        run: python scripts/calibrar.py
+
+      - name: Paper trading
+        run: python scripts/paper_trading.py
+
+      - name: Publicar na nuvem
+        if: always()
+        run: python scripts/publicar_nuvem.py
+
+      - name: Fechar o banco (checkpoint do WAL)
+        if: always()
+        run: python -c "import sqlite3; c = sqlite3.connect('data/b3.db'); c.execute('PRAGMA wal_checkpoint(TRUNCATE)'); c.close()"
+
+      - name: Guardar o banco
+        if: always()
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            data/b3.db
+            data/modelos
+          key: banco-v1-${{ github.run_id }}
+
+      - name: Log
+        if: always()
+        run: tail -n 80 logs/app.log || true

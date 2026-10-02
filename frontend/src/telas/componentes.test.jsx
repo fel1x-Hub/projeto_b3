@@ -2,6 +2,7 @@ import { act, fireEvent, render, renderHook, screen, waitFor } from "@testing-li
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useApi } from "../api.js";
 import { ResumoCarteira } from "./Carteira.jsx";
+import Previsoes from "./Previsoes.jsx";
 import { TabelaRanking } from "./Ranking.jsx";
 
 const LINHAS = [
@@ -57,5 +58,23 @@ describe("useApi (regra 15)", () => {
     await act(() => result.current.recarregar());
     expect(result.current.dados).toEqual({ x: 1 });
     expect(result.current.erro.message).toBe("fora do ar");
+  });
+});
+
+describe("Previsoes", () => {
+  it("mostra notas, tendência, padrão com efeito medido e o aviso de que não é promessa", () => {
+    render(<Previsoes pontuacao={{ compra: 87, venda: 13 }}
+      padrao={{ tendencia: { tendencia: "alta", acima_mm50: true, acima_mm200: true, retorno_3m: 0.12 },
+                grafico: { nome: "Fundo duplo", direcao_classica: "alta",
+                           efeito_historico: [{ horizonte: 21, conclusao: "sem efeito comprovado no histórico em 1 mês (40 casos)" }] } }}
+      previsoes={[{ horizonte: 21, prazo: "1 mês", faixa_min: 80, faixa_max: 90, retorno_medio: 0.021, p25: -0.04, p75: 0.07,
+                    excesso_medio: 0.012, chance_superar: 0.56, sinal: "compra", comportamento: "tende a superar o mercado",
+                    periodo_inicio: "2022-10-03", periodo_fim: "2026-09-01" }]} />);
+    expect(screen.getByText("87")).toBeInTheDocument();
+    expect(screen.getByText("alta")).toHaveClass("text-alta");
+    expect(screen.getByText("Fundo duplo")).toBeInTheDocument();
+    expect(screen.getByText(/sem efeito comprovado/)).toBeInTheDocument();
+    expect(screen.getByText("+2,1%")).toHaveClass("text-alta");
+    expect(screen.getByText(/Não é promessa/)).toBeInTheDocument();
   });
 });

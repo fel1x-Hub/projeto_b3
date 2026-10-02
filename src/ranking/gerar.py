@@ -115,7 +115,7 @@ def ranking_da_data(conn: sqlite3.Connection, dia: date, colunas: list[str] | No
     if len(treino) < 1000:
         raise ValueError(f"histórico insuficiente para treinar em {dia}: {len(treino)} amostras")
     treino["y"] = modelo.alvo_de_treino(treino)
-    m = modelo.treinar(treino[colunas], treino["y"])
+    m = modelo.treinar(treino[colunas], treino["y"], modelo.RESTRICOES)
     if salvar_em is not None:
         salvar_em.mkdir(parents=True, exist_ok=True)
         # o LightGBM (C) não grava em caminhos com acento no Windows ("Fodástica"): grava via Python

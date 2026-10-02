@@ -63,7 +63,7 @@ def _base_montar(conn):
     ts = "2026-09-24T22:00:00+00:00"
     with conn:
         conn.execute("UPDATE ativos SET codigo_cvm = '9512' WHERE ticker = 'PETR4'")
-        conn.execute("INSERT INTO ranking VALUES ('2026-09-24', 'PETR4', 0.6, 1, 'lgbm-v1', ?, ?)", (ts, ts))
+        conn.execute("INSERT INTO ranking VALUES ('2026-09-24', 'PETR4', 0.6, 1, 'lgbm-v2', ?, ?)", (ts, ts))
         # Fato entregue em 22/09 às 23:59:59 BRT = 23/09 02:59:59 UTC.
         conn.execute("INSERT INTO documentos (id, tipo, ticker, fonte, id_externo, url, disponivel_em, coletado_em) "
                      "VALUES (1, 'Fato Relevante', 'PETR4', 'cvm_ipe', 'x', 'http://x', "
@@ -103,7 +103,7 @@ def test_ranking_preenche_pregoes_perdidos(conn):
     _universo(conn, ["2026-09-28", "2026-09-29", "2026-09-30", "2026-10-01"])
     assert gerar.datas_pendentes(conn) == [date(2026, 10, 1)]          # sem ranking ainda: só o último
     with conn:
-        conn.execute("INSERT INTO ranking VALUES ('2026-09-29', 'PETR4', 0.5, 1, 'lgbm-v1', ?, ?)",
+        conn.execute("INSERT INTO ranking VALUES ('2026-09-29', 'PETR4', 0.5, 1, 'lgbm-v2', ?, ?)",
                      ("2026-09-29T22:00:00+00:00", "2026-09-29T22:00:00+00:00"))
     assert gerar.datas_pendentes(conn) == [date(2026, 9, 30), date(2026, 10, 1)]   # PC desligado em 30/09
     assert gerar.datas_pendentes(conn, limite=1) == [date(2026, 10, 1)]

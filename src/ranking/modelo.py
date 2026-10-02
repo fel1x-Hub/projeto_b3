@@ -17,7 +17,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-VERSAO = 1
+VERSAO = 2   # v2 (02/10/2026): restrições monotônicas, aprovadas no pré-registro (docs/ranking_v2.md)
 PARAMETROS = {
     "objective": "regression",
     "learning_rate": 0.03,
@@ -40,6 +40,7 @@ MONOTONIA = {
     "fund_lp": 1, "fund_roe": 1, "fund_margem_liq": 1, "fund_margem_ebitda": 1,
     "fund_pvp": -1, "fund_pl": -1, "fund_divliq_ebitda": -1, "vol_21d": -1, "vol_63d": -1,
 }
+RESTRICOES = MONOTONIA if VERSAO >= 2 else None   # o que o modelo em uso aplica
 TREINO_MINIMO_DIAS = 252  # ~1 ano de alvos conhecidos antes do primeiro teste
 
 

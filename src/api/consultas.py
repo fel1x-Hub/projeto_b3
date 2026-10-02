@@ -162,16 +162,22 @@ def tabela_ranking(conn: sqlite3.Connection, vigor: dict | None, carteira: set[s
             "SELECT ticker, nome, valor FROM sinais WHERE data = ? AND nome IN ('sent_media_21d', 'vol_fin_rel21')",
             (data_sinais,)):
         extras.setdefault(t, {})[nome] = valor
+    notas = pontuacoes(conn, vigor)
+    calib = tabela_calibracao(conn)
     linhas = []
     for t, pos, score in conn.execute(
             "SELECT ticker, posicao, score FROM ranking WHERE data = ? AND versao_modelo = ? ORDER BY posicao",
             (vigor["data"], vigor["versao"])):
         p = px.get(t, {})
+        nota = notas.get(t, {})
+        prev1 = next((x for x in previsoes(nota.get("compra"), calib) if x["horizonte"] == 21), None)
         linhas.append({"posicao": pos, "ticker": t, "nome": nm.get(t), "score": score,
                        "preco": p.get("preco"), "variacao_dia": p.get("variacao_dia"),
                        "sentimento_21d": extras.get(t, {}).get("sent_media_21d"),
                        "volume_relativo": extras.get(t, {}).get("vol_fin_rel21"),
-                       "na_carteira": t in carteira})
+                       "na_carteira": t in carteira,
+                       "pontuacao_compra": nota.get("compra"), "pontuacao_venda": nota.get("venda"),
+                       "sinal_1m": prev1["sinal"] if prev1 else None})
     return linhas
 
 
@@ -273,3 +279,78 @@ def fatos_relevantes(conn: sqlite3.Connection, ticker: str | None = None, desde:
         saida.append({"ticker": t, "data": _data_brt(disp).isoformat(), "assunto": assunto, "url": url,
                       "evento": evento, "direcao": direcao, "resumo": resumo})
     return saida[:n]
+
+
+# ---------------------------------------------------------------- pontuações e previsões
+
+DIAS_QUEDA = 10   # a pontuação de venda pesa a queda no ranking nos últimos ~10 pregões
+
+
+def pontuacoes(conn: sqlite3.Connection, vigor: dict | None) -> dict[str, dict]:
+    """ticker -> {compra, venda} (0–100) no ranking em vigor."""
+    from src.ranking import calibracao as cal
+    rank = posicoes_ranking(conn, vigor)
+    if not rank:
+        return {}
+    total = len(rank)
+    antes = conn.execute("SELECT data FROM (SELECT DISTINCT data FROM ranking WHERE versao_modelo = ? AND data < ? "
+                         "ORDER BY data DESC LIMIT ?) ORDER BY data LIMIT 1",
+                         (OFICIAL, vigor["data"], DIAS_QUEDA)).fetchone()
+    rank_antes = posicoes_ranking(conn, {"data": antes[0], "versao": OFICIAL}) if antes else {}
+    total_antes = len(rank_antes)
+    saida = {}
+    for t, (pos, _) in rank.items():
+        compra = cal.pontuacao_compra(pos, total)
+        compra_antes = cal.pontuacao_compra(rank_antes[t][0], total_antes) if t in rank_antes else None
+        saida[t] = {"compra": round(compra), "venda": round(cal.pontuacao_venda(compra, compra_antes))}
+    return saida
+
+
+def tabela_calibracao(conn: sqlite3.Connection) -> dict[tuple[int, int], dict]:
+    cur = conn.execute("SELECT * FROM calibracao WHERE versao_modelo = ?", (OFICIAL,))
+    nomes = [d[0] for d in cur.description]
+    return {(r["horizonte"], r["faixa_min"]): dict(zip(nomes, tuple(r))) for r in cur.fetchall()}
+
+
+def previsoes(compra: float | None, tabela: dict) -> list[dict]:
+    """Histórico da faixa de pontuação da ação em cada prazo (não é promessa)."""
+    from src.ranking import calibracao as cal
+    if compra is None or not tabela:
+        return []
+    faixa = cal.faixa_de(compra)
+    saida = []
+    for h in cal.PRAZOS:
+        r = tabela.get((h, faixa))
+        if r:
+            saida.append({k: r[k] for k in ("horizonte", "prazo", "faixa_min", "faixa_max", "n", "janelas_independentes",
+                                             "retorno_medio", "retorno_mediano", "p25", "p75", "excesso_medio",
+                                             "chance_superar", "t", "sinal", "comportamento", "periodo_inicio", "periodo_fim")})
+    return saida
+
+
+def tendencia(sinais: list[dict]) -> dict | None:
+    """Alta/baixa/lateral pela posição do preço frente às médias de 50 e 200 dias e o retorno de 3 meses."""
+    v = {s["sinal"]: s["valor"] for s in sinais}
+    if not {"dist_mm50", "dist_mm200", "ret_63d"} <= v.keys():
+        return None
+    if v["dist_mm50"] > 0 and v["dist_mm200"] > 0 and v["ret_63d"] > 0:
+        rotulo = "alta"
+    elif v["dist_mm50"] < 0 and v["dist_mm200"] < 0 and v["ret_63d"] < 0:
+        rotulo = "baixa"
+    else:
+        rotulo = "lateral"
+    return {"tendencia": rotulo, "acima_mm50": v["dist_mm50"] > 0, "acima_mm200": v["dist_mm200"] > 0,
+            "retorno_3m": v["ret_63d"]}
+
+
+def padrao_grafico(conn: sqlite3.Connection, ticker: str, fechamentos) -> dict | None:
+    """Padrão confirmado nos últimos 120 pregões + o efeito MEDIDO dele no histórico."""
+    from src.sinais import padroes
+    achado = padroes.descrever(padroes.detectar(fechamentos))
+    if achado is None:
+        return None
+    cur = conn.execute("SELECT horizonte, n, excesso_medio, chance_superar, t, conclusao FROM padroes_efeito "
+                       "WHERE padrao = ? ORDER BY horizonte", (achado["codigo"],))
+    nomes = [d[0] for d in cur.description]
+    achado["efeito_historico"] = [dict(zip(nomes, tuple(r))) for r in cur.fetchall()]
+    return achado

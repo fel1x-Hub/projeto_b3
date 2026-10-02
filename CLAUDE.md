@@ -67,7 +67,7 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 **Etapa 4: concluída.** Desenho e leitura dos resultados em `docs/ranking.md`, números em `docs/ranking_avaliacao.md`.
 - O modelo tem IC +0,105 (positivo nos 5 anos), abaixo do baseline de valor em IC (+0,119). O ganho dele está nos extremos: spread topo−fundo de +2,4% em 21 dias nas ações líquidas, contra −1,2% do valor sozinho.
 - O resultado depende do regime de juros altos (valor, qualidade e baixo risco).
-- Reavaliar com eventos (`avaliar_ranking.py`) quando a classificação de títulos terminar.
+- Eventos reavaliados com 96% dos títulos (02/10/2026): só entram como sensibilidade (risco de look-ahead do LLM).
 
 **Etapa 5 — backtest ✅; paper trading em andamento.** Leitura em `docs/validacao.md`, números em `docs/backtest.md`.
 - Regra do usuário: top 30, pesos iguais, rebalanceamento quinzenal, universo todo.
@@ -103,6 +103,17 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
   - ciclo intradiário testado na nuvem
 - Falta conferir o critério das 24 h (ciclos do pregão e pipeline das 21h30). Depois disso, perguntar ao usuário se desliga o agendador local.
 - Critério de pronto: `/health` em produção, site público conectado, `.exe` funcionando, dados históricos no Neon e coleta agendada verificada após 24 h.
+
+**Pontuações e previsões (pedido do usuário, 02/10/2026; modelo v2 aprovado pelo usuário).**
+- **Modelo em uso: `lgbm-v2`.** É o LightGBM com restrições monotônicas, aprovado no pré-registro (`docs/ranking_v2.md`). A carteira simulada reiniciou com ele; o resultado do v1 ficou arquivado em `paper_config`.
+- **Pontuação de compra (0–100):** a posição no ranking. **Pontuação de venda:** 100 − compra, mais metade da queda da nota em 10 pregões (`src/ranking/calibracao.py`).
+- **Previsões de 1, 6 e 12 meses:** o histórico fora da amostra da faixa de pontuação, nunca promessa (`scripts/calibrar.py`, tabela `calibracao`, resumo em `docs/previsoes.md`). O sinal exige t ≥ 2 e pelo menos 8 janelas independentes.
+  - Achado: o modelo acerta mais nas **piores** ações. A faixa 0–10 fica −3,4 p.p. abaixo do mercado em 1 mês. O topo empata com o mercado.
+- **Padrão:**
+  - tendência pelas médias de 50 e 200 dias;
+  - comportamento contra o mercado;
+  - padrões gráficos (`src/sinais/padroes.py`) com efeito **medido** em `padroes_efeito`. Só o OCO tem efeito comprovado (queda); o OCO invertido também antecedeu queda, ao contrário da leitura clássica.
+- **Recalibração:** o workflow `recalibrar.yml` roda todo sábado e sob demanda.
 
 ## Stack
 - Python 3.11+

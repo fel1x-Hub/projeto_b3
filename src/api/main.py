@@ -228,13 +228,20 @@ def ativo(ticker: str, dias: int = Query(365, ge=5, le=365 * 5), conn=Depends(ba
     rank = consultas.posicoes_ranking(conn, vigor)
     preco = consultas.precos(conn).get(t)
     hist = consultas.historico_precos(conn, t, dias)
+    nota = consultas.pontuacoes(conn, vigor).get(t)
+    sinais = consultas.sinais_atuais(conn, t)
+    recentes = consultas.historico_precos(conn, t, 200)["fechamento"].dropna().to_numpy()
     dados = {
         "ticker": t, "nome": cad[0], "setor": cad[1], "cnpj": cad[2],
         "cotacao": preco,
         "ranking": {"posicao": rank.get(t, (None, None))[0], "score": rank.get(t, (None, None))[1],
                     "total": len(rank), "em_vigor": vigor},
         "fatores": consultas.fatores(conn, vigor, [t], n=8).get(t, []),
-        "sinais": consultas.sinais_atuais(conn, t),
+        "sinais": sinais,
+        "pontuacao": nota,
+        "previsoes": consultas.previsoes(nota and nota["compra"], consultas.tabela_calibracao(conn)),
+        "padrao": {"tendencia": consultas.tendencia(sinais["sinais"]),
+                   "grafico": consultas.padrao_grafico(conn, t, recentes)},
         "precos": hist.to_dict("records"),
         "historico_score": consultas.historico_score(conn, t, dias),
         "noticias": consultas.noticias(conn, t),

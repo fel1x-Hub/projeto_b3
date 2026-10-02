@@ -80,6 +80,18 @@ CREATE TABLE IF NOT EXISTS relatorios (
 CREATE TABLE IF NOT EXISTS publicacoes (
     tabela TEXT PRIMARY KEY, publicado_em TEXT NOT NULL, linhas INTEGER NOT NULL);
 
+CREATE TABLE IF NOT EXISTS calibracao (
+    versao_modelo TEXT NOT NULL, horizonte INTEGER NOT NULL, prazo TEXT NOT NULL, faixa_min INTEGER NOT NULL,
+    faixa_max INTEGER NOT NULL, n INTEGER NOT NULL, janelas_independentes INTEGER NOT NULL,
+    retorno_medio DOUBLE PRECISION, retorno_mediano DOUBLE PRECISION, p25 DOUBLE PRECISION, p75 DOUBLE PRECISION,
+    excesso_medio DOUBLE PRECISION, chance_superar DOUBLE PRECISION, t DOUBLE PRECISION, sinal TEXT NOT NULL,
+    comportamento TEXT NOT NULL, periodo_inicio TEXT NOT NULL, periodo_fim TEXT NOT NULL, calculado_em TEXT NOT NULL,
+    PRIMARY KEY (versao_modelo, horizonte, faixa_min));
+CREATE TABLE IF NOT EXISTS padroes_efeito (
+    padrao TEXT NOT NULL, horizonte INTEGER NOT NULL, n INTEGER NOT NULL, excesso_medio DOUBLE PRECISION,
+    chance_superar DOUBLE PRECISION, t DOUBLE PRECISION, conclusao TEXT NOT NULL, periodo_inicio TEXT NOT NULL,
+    periodo_fim TEXT NOT NULL, calculado_em TEXT NOT NULL, PRIMARY KEY (padrao, horizonte));
+
 CREATE TABLE IF NOT EXISTS usuarios (
     usuario TEXT PRIMARY KEY, senha_hash TEXT NOT NULL, criado_em TEXT NOT NULL);
 

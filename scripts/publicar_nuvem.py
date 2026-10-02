@@ -28,11 +28,16 @@ from src.db import schema_nuvem  # noqa: E402
 from src.db.conexao import conectar  # noqa: E402
 from src.db.tempo import agora_utc_iso  # noqa: E402
 from src.logging_config import configurar_logging  # noqa: E402
+from src.ranking import gerar  # noqa: E402
 
 logger = logging.getLogger("publicar_nuvem")
 
 JANELA_DIAS = 15            # tabelas grandes: regrava a partir de (último dia publicado - 15)
-SINAIS_DATAS = 10           # sinais/universo: só os últimos pregões (tela da ação usa o último)
+SINAIS_DATAS = 10
+COLS_CALIBRACAO = ("versao_modelo, horizonte, prazo, faixa_min, faixa_max, n, janelas_independentes, retorno_medio, "
+                   "retorno_mediano, p25, p75, excesso_medio, chance_superar, t, sinal, comportamento, "
+                   "periodo_inicio, periodo_fim, calculado_em")
+COLS_PADROES = "padrao, horizonte, n, excesso_medio, chance_superar, t, conclusao, periodo_inicio, periodo_fim, calculado_em"           # sinais/universo: só os últimos pregões (tela da ação usa o último)
 
 
 @dataclass
@@ -78,11 +83,14 @@ def tabelas(hoje: date) -> list[Tabela]:
                "SELECT id, fonte, inicio, fim, status, registros_novos, erro FROM execucoes_coleta "
                "WHERE id > (SELECT MAX(id) - 500 FROM execucoes_coleta)"),
         Tabela("relatorios", "data, markdown, gerado_em", "SELECT data, markdown, gerado_em FROM relatorios"),
+        Tabela("calibracao", COLS_CALIBRACAO, f"SELECT {COLS_CALIBRACAO} FROM calibracao"),
+        Tabela("padroes_efeito", COLS_PADROES, f"SELECT {COLS_PADROES} FROM padroes_efeito"),
         Tabela("cotacoes", "ticker, data, abertura, maxima, minima, fechamento, volume",
                "SELECT ticker, data, abertura, maxima, minima, fechamento, volume FROM cotacoes", janela="data"),
         Tabela("ranking", "data, ticker, score, posicao, versao_modelo, disponivel_em, calculado_em",
                "SELECT data, ticker, score, posicao, versao_modelo, disponivel_em, calculado_em FROM ranking "
-               "WHERE versao_modelo IN ('lgbm-v1', 'wf-lgbm-v1', 'lgbm-v1-provisorio')", janela="data"),
+               f"WHERE versao_modelo IN ('{gerar.VERSAO_MODELO}', '{gerar.VERSAO_WALK_FORWARD}', "
+               f"'{gerar.VERSAO_MODELO}-provisorio')", janela="data"),
         Tabela("ranking_fatores", "data, ticker, versao_modelo, sinal, percentil, contribuicao",
                "SELECT data, ticker, versao_modelo, sinal, percentil, contribuicao FROM ranking_fatores",
                janela="data", retencao_dias=90),

@@ -9,7 +9,7 @@ TABELAS = {
     "documentos", "execucoes_coleta", "revisoes", "schema_versao",
     "proventos", "demonstracoes",
     "sinais", "sentimento_noticias", "eventos_documentos", "llm_cache", "llm_erros", "universo", "ranking", "paper_config", "paper_carteira", "paper_patrimonio", "ranking_fatores", "cotacao_atual",
-    "carteira_operacoes", "carteira_sincronizada", "relatorios", "usuarios",
+    "carteira_operacoes", "carteira_sincronizada", "relatorios", "usuarios", "calibracao", "padroes_efeito",
 }
 INDICES = {
     "idx_noticias_disponivel_em", "idx_noticias_ativos_ticker",

@@ -18,6 +18,8 @@ export const COLUNAS_CARTEIRA = [
   { titulo: "Ano (papel)", chave: "retorno_ano", fmt: (v) => pct(v), colorir: true },
   { titulo: "Proventos", chave: "proventos", fmt: reais },
   { titulo: "Ranking", chave: "posicao_ranking", fmt: (v) => (v ? `#${v}` : "–") },
+  { titulo: "Compra", chave: "pontuacao_compra", fmt: (v) => (v ?? "–").toString() },
+  { titulo: "Venda", chave: "pontuacao_venda", fmt: (v) => (v ?? "–").toString() },
   { titulo: "Leitura", chave: "leitura" },
 ];
 

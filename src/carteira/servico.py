@@ -52,6 +52,7 @@ def montar(conn: sqlite3.Connection, hoje: date | None = None) -> dict:
     rank = consultas.posicoes_ranking(conn, vigor)
     total_ranking = len(rank)
     fat = consultas.fatores(conn, vigor, tickers)
+    notas = consultas.pontuacoes(conn, vigor)
     nomes = consultas.nomes(conn)
 
     linhas, avisos = [], []
@@ -87,6 +88,7 @@ def montar(conn: sqlite3.Connection, hoje: date | None = None) -> dict:
             "fonte_quantidade": "corretora" if t in sync else "operacoes",
             "posicao_ranking": posicao_rank, "total_ranking": total_ranking,
             "leitura": leitura(posicao_rank), "fatores": fat.get(t, []),
+            "pontuacao_compra": notas.get(t, {}).get("compra"), "pontuacao_venda": notas.get(t, {}).get("venda"),
         })
 
     valor_total = sum(l["valor"] or 0 for l in linhas)

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { chamar, useApi } from "../api.js";
 import { Aviso, Carregando, Erro, Tabela } from "../comum.jsx";
+import Previsoes from "./Previsoes.jsx";
 import { corValor, hora, num, pct, reais } from "../fmt.js";
 
 const PERIODOS = [["1 mês", 31], ["3 meses", 92], ["1 ano", 365], ["3 anos", 1095], ["5 anos", 1825]];
@@ -73,6 +74,7 @@ export default function Ativo({ ticker, aoEnvelope, abrirAtivo, logado }) {
         <span className="text-apagado text-sm"> · às {hora(c.horario)}</span>
         {c.provisorio && <span className="ml-2 text-xs bg-atencao text-fundo rounded px-1.5 py-0.5">PROVISÓRIO</span>}
       </h1>
+      <Previsoes pontuacao={dados.pontuacao} previsoes={dados.previsoes} padrao={dados.padrao} />
       <div className="grid lg:grid-cols-5 gap-3">
         <div className="lg:col-span-3 space-y-3">
           <div className="h-72 bg-painel border border-borda rounded-lg p-2">

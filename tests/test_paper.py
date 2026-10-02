@@ -28,3 +28,17 @@ def test_paper_trading_registra_carteira_e_patrimonio(conn_mercado):
     # rodar de novo não duplica
     paper.atualizar(conn, matriz_retornos(conn), dados.carregar_universo(conn), inicio, regra)
     assert conn.execute("SELECT COUNT(*) FROM paper_patrimonio").fetchone()[0] == len(patrimonio)
+
+
+def test_troca_de_modelo_arquiva_e_reinicia(conn):
+    import json
+    from src.validacao import paper
+    with conn:
+        conn.execute("INSERT INTO paper_config VALUES ('inicio', '2026-09-29')")   # sem 'versao' = v1 antigo
+        conn.execute("INSERT INTO paper_patrimonio VALUES ('2026-10-01', 0.9994, 0.001, 0, '2026-10-01T22:00:00+00:00')")
+    assert paper.inicio(conn, se_vazio="2026-10-02", versao="lgbm-v1") == "2026-09-29"   # mesma versão: nada muda
+    assert paper.inicio(conn, se_vazio="2026-10-02", versao="lgbm-v2") == "2026-10-02"   # versão nova: recomeça
+    cfg = dict(conn.execute("SELECT chave, valor FROM paper_config"))
+    assert cfg["versao"] == "lgbm-v2" and conn.execute("SELECT COUNT(*) FROM paper_patrimonio").fetchone()[0] == 0
+    assert json.loads(cfg["historico:lgbm-v1"]) == {"inicio": "2026-09-29", "fim": "2026-10-01", "patrimonio_final": 0.9994}
+    assert paper.inicio(conn, se_vazio="2026-10-05", versao="lgbm-v2") == "2026-10-02"   # depois fica fixo

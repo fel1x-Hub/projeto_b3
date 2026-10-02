@@ -141,7 +141,11 @@ class AbaRanking(Aba):
         topo.addWidget(self.info)
         lay.addLayout(topo)
         self.modelo = Tabela([("#", "posicao", lambda v: str(v), False), ("Ticker", "ticker", None, False),
-                              ("Nome", "nome", None, False), ("Score", "score", lambda v: num(v, 3), False),
+                              ("Nome", "nome", None, False),
+                              ("Compra 0–100", "pontuacao_compra", lambda v: "–" if v is None else str(v), False),
+                              ("Venda 0–100", "pontuacao_venda", lambda v: "–" if v is None else str(v), False),
+                              ("Sinal 1m", "sinal_1m", None, False),
+                              ("Score", "score", lambda v: num(v, 3), False),
                               ("Preço", "preco", reais, False), ("Dia", "variacao_dia", pct, True),
                               ("Sentimento 21d", "sentimento_21d", lambda v: num(v), True),
                               ("Volume vs média", "volume_relativo", lambda v: num(v), False),
@@ -185,6 +189,9 @@ class AbaAtivo(Aba):
             topo.addWidget(w)
         topo.addWidget(self.cabecalho, 1)
         lay.addLayout(topo)
+        self.previsoes = QTextBrowser()
+        self.previsoes.setMaximumHeight(190)
+        lay.addWidget(self.previsoes)
 
         divisor = QSplitter(Qt.Horizontal)
         esquerda = QWidget()
@@ -237,6 +244,7 @@ class AbaAtivo(Aba):
         self.cabecalho.setText(f"{d['ticker']} · {d['nome']} · {reais(c.get('preco'))} "
                                f"<span style='color:{cor_valor(c.get('variacao_dia')) or '#e6edf3'}'>"
                                f"{pct(c.get('variacao_dia'))}</span> · {pos} · às {hora(c.get('horario'))}{selo}")
+        self.previsoes.setHtml(html_previsoes(d.get("pontuacao"), d.get("previsoes"), d.get("padrao")))
         self.g_preco.clear()
         precos = [p for p in d["precos"] if p.get("fechamento")]
         if precos:
@@ -279,6 +287,36 @@ class AbaAtivo(Aba):
             self.porque.setPlainText(f"Explicação indisponível: {msg}")
             self.bt_porque.setEnabled(True)
         em_segundo_plano(lambda: self.cliente.get(f"/ativo/{self.ticker}/porque"), ok, falha)
+
+
+def html_previsoes(nota, previsoes, padrao) -> str:
+    """Notas 0–100, tendência, padrão gráfico (com efeito medido) e histórico da faixa por prazo."""
+    cor = {"compra": VERDE, "venda": VERMELHO}
+    partes = []
+    if nota:
+        partes.append(f"<span style='font-size:20px'><b style='color:{VERDE}'>Compra {nota['compra']}</b> · "
+                      f"<b style='color:{VERMELHO}'>Venda {nota['venda']}</b></span> <span style='color:{CINZA}'>(0 a 100)</span>")
+    tend = (padrao or {}).get("tendencia")
+    graf = (padrao or {}).get("grafico")
+    linha = f"Tendência: <b>{tend['tendencia']}</b>" if tend else "Tendência: –"
+    linha += (f" · Padrão gráfico: <b>{graf['nome']}</b> (leitura clássica: {graf['direcao_classica']})" if graf
+              else " · Padrão gráfico: nenhum confirmado nos últimos 120 pregões")
+    partes.append(linha)
+    for e in (graf or {}).get("efeito_historico", []):
+        partes.append(f"<span style='color:{CINZA}'>↳ {e['conclusao']}</span>")
+    if previsoes:
+        linhas = "".join(
+            f"<tr><td>{p['prazo']}</td><td style='color:{cor_valor(p['retorno_medio']) or '#e6edf3'}'>{pct(p['retorno_medio'], 1)}</td>"
+            f"<td>{pct(p['p25'], 0)} a {pct(p['p75'], 0)}</td><td>{pct(p['excesso_medio'], 1)}</td>"
+            f"<td>{pct(p['chance_superar'], 0, False)}</td><td style='color:{cor.get(p['sinal'], CINZA)}'>{p['sinal']}</td>"
+            f"<td style='color:{CINZA}'>{p['comportamento']}</td></tr>" for p in previsoes)
+        partes.append("<table cellpadding='3'><tr style='color:#8b949e'><td>Prazo</td><td>Ganho esperado*</td><td>Faixa provável</td>"
+                      "<td>Contra o mercado</td><td>Chance de superar</td><td>Sinal</td><td>Comportamento</td></tr>"
+                      + linhas + "</table>")
+        p0 = previsoes[0]
+        partes.append(f"<span style='color:{CINZA}; font-size:11px'>* Não é promessa: histórico fora da amostra de ações na "
+                      f"mesma faixa ({p0['faixa_min']}–{p0['faixa_max']}), {p0['periodo_inicio']} a {p0['periodo_fim']}.</span>")
+    return "<br>".join(partes)
 
 
 def _epoch(data_iso: str) -> float:
@@ -344,6 +382,8 @@ class AbaCarteira(Aba):
                              ("Ganho %", "ganho_pct", pct, True), ("Mês (papel)", "retorno_mes", pct, True),
                              ("Ano (papel)", "retorno_ano", pct, True), ("Proventos", "proventos", reais, False),
                              ("Ranking", "posicao_ranking", lambda v: "–" if v is None else f"#{v}", False),
+                             ("Compra", "pontuacao_compra", lambda v: "–" if v is None else str(v), False),
+                             ("Venda", "pontuacao_venda", lambda v: "–" if v is None else str(v), False),
                              ("Leitura", "leitura", None, False)])
         v_pos, self.p_pos = tabela_view(self.m_pos)
         v_pos.doubleClicked.connect(lambda i: self.abrir_ativo.emit(self.m_pos.linha(self.p_pos.mapToSource(i).row())["ticker"]))

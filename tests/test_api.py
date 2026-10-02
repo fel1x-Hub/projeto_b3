@@ -27,15 +27,19 @@ def _popular(conn):
                              "VALUES (?, ?, ?, 1000, 'b3_cotahist', ?, ?)", (t, d, base + i, TS, TS))
         ult = dias[-1]
         for t, pos, score in (("PETR4", 1, 0.6), ("VALE3", 2, 0.4)):
-            conn.execute("INSERT INTO ranking VALUES (?, ?, ?, ?, 'lgbm-v1', ?, ?)", (ult, t, score, pos, TS, TS))
+            conn.execute("INSERT INTO ranking VALUES (?, ?, ?, ?, 'lgbm-v2', ?, ?)", (ult, t, score, pos, TS, TS))
             conn.execute("INSERT INTO universo VALUES (?, ?, 1e6, 'liquidez', ?)", (ult, t, TS))
-            conn.execute("INSERT INTO ranking_fatores VALUES (?, ?, 'lgbm-v1', 'fund_lp', 0.9, ?)",
+            conn.execute("INSERT INTO ranking_fatores VALUES (?, ?, 'lgbm-v2', 'fund_lp', 0.9, ?)",
                          (ult, t, 0.02 if t == "PETR4" else -0.01))
             conn.execute("INSERT INTO sinais (ticker, data, nome, valor, versao, disponivel_em, calculado_em) "
                          "VALUES (?, ?, 'fund_lp', ?, 1, ?, ?)", (t, ult, 0.15 if t == "PETR4" else 0.05, TS, TS))
         conn.execute("INSERT INTO macro (serie, data, valor, fonte, disponivel_em, coletado_em) "
                      "VALUES ('selic_meta', ?, 13.75, 'bcb', ?, ?)", (ult, TS, TS))
         conn.execute("INSERT INTO relatorios VALUES ('2026-09-29', '# Relatório\nTexto.', ?)", (TS,))
+        for faixa, ret, sinal in ((90, 0.03, "compra"), (0, -0.02, "venda")):
+            conn.execute("INSERT INTO calibracao VALUES ('lgbm-v2', 21, '1 mês', ?, ?, 500, 30, ?, ?, -0.05, 0.08, ?, "
+                         "0.6, 2.5, ?, 'tende a superar o mercado', '2022-10-03', '2026-09-01', ?)",
+                         (faixa, faixa + 10, ret, ret, ret - 0.01, sinal, TS))
         # tipo gravado pela coleta da CVM é 'fato_relevante' (não o nome da categoria)
         conn.execute("INSERT INTO documentos (id, tipo, ticker, assunto, url, fonte, id_externo, disponivel_em, coletado_em) "
                      "VALUES (1, 'fato_relevante', 'PETR4', 'Dividendos', 'http://x', 'cvm_ipe', 'a', ?, ?)", (TS, TS))
@@ -115,7 +119,7 @@ def test_cotacao_do_momento_e_ranking_provisorio_prevalecem(cliente):
     with conn:
         conn.execute("INSERT INTO cotacao_atual VALUES ('PETR4', 33.5, 32.0, 0.046875, ?, 'yfinance_intradia', ?)",
                      (agora, agora))
-        conn.execute("INSERT INTO ranking VALUES ('2099-01-01', 'VALE3', 0.7, 1, 'lgbm-v1-provisorio', ?, ?)", (agora, agora))
+        conn.execute("INSERT INTO ranking VALUES ('2099-01-01', 'VALE3', 0.7, 1, 'lgbm-v2-provisorio', ?, ?)", (agora, agora))
     conn.close()
     r = cliente.get("/ranking", headers=H).json()
     assert r["provisorio"] is True and r["dados"]["linhas"][0]["ticker"] == "VALE3"
@@ -214,7 +218,7 @@ def test_porque(cliente, monkeypatch):
 def test_notificacoes_e_status(cliente):
     assert cliente.get("/notificacoes", headers=H).status_code == 200
     s = cliente.get("/status", headers=H).json()["dados"]
-    assert s["ultimo_relatorio"] == "2026-09-29" and s["ranking_oficial"]["versao"] == "lgbm-v1"
+    assert s["ultimo_relatorio"] == "2026-09-29" and s["ranking_oficial"]["versao"] == "lgbm-v2"
 
 
 def test_ibovespa_do_momento_so_se_for_do_dia(cliente):
@@ -316,3 +320,14 @@ def test_sessao_expira_e_nao_aceita_assinatura_falsa(monkeypatch):
     assert autenticacao.validar_sessao(f"{versao}.{corpo}.assinaturafalsa", agora=1000.0) is None
     monkeypatch.setenv("API_TOKEN", "outro")          # trocar o segredo derruba as sessões
     assert autenticacao.validar_sessao(s, agora=1000.0) is None
+
+
+def test_pontuacoes_e_previsoes(cliente):
+    linhas = cliente.get("/ranking").json()["dados"]["linhas"]
+    assert [(l["ticker"], l["pontuacao_compra"], l["pontuacao_venda"], l["sinal_1m"]) for l in linhas] == [
+        ("PETR4", 100, 0, "compra"), ("VALE3", 0, 100, "venda")]
+    a = cliente.get("/ativo/PETR4").json()["dados"]
+    assert a["pontuacao"] == {"compra": 100, "venda": 0}
+    prev = a["previsoes"]
+    assert len(prev) == 1 and prev[0]["prazo"] == "1 mês" and prev[0]["retorno_medio"] == 0.03 and prev[0]["faixa_min"] == 90
+    assert a["padrao"]["grafico"] is None                  # 3 pregões de histórico: sem padrão

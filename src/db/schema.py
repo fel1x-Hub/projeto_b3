@@ -433,3 +433,38 @@ CREATE TABLE usuarios (
     {_ts("criado_em")}
 );
 """
+
+
+SCHEMA_V12 = f"""
+-- Previsões calibradas no histórico fora da amostra (scripts/calibrar.py):
+-- o que aconteceu, por faixa de pontuação de compra e prazo. Não é promessa.
+CREATE TABLE calibracao (
+    versao_modelo   TEXT NOT NULL,
+    horizonte       INTEGER NOT NULL,           -- pregões (21, 126, 252)
+    prazo           TEXT NOT NULL,
+    faixa_min       INTEGER NOT NULL,           -- pontuação de compra (0, 10, ..., 90)
+    faixa_max       INTEGER NOT NULL,
+    n               INTEGER NOT NULL,
+    janelas_independentes INTEGER NOT NULL,
+    retorno_medio   REAL, retorno_mediano REAL, p25 REAL, p75 REAL,
+    excesso_medio   REAL,                       -- contra o BOVA11 no mesmo período
+    chance_superar  REAL,
+    t               REAL,
+    sinal           TEXT NOT NULL,
+    comportamento   TEXT NOT NULL,
+    {_data("periodo_inicio")}, {_data("periodo_fim")},
+    {_ts("calculado_em")},
+    PRIMARY KEY (versao_modelo, horizonte, faixa_min)
+);
+-- Efeito histórico de cada padrão gráfico (medido antes de ser mostrado).
+CREATE TABLE padroes_efeito (
+    padrao          TEXT NOT NULL,
+    horizonte       INTEGER NOT NULL,
+    n               INTEGER NOT NULL,
+    excesso_medio   REAL, chance_superar REAL, t REAL,
+    conclusao       TEXT NOT NULL,
+    {_data("periodo_inicio")}, {_data("periodo_fim")},
+    {_ts("calculado_em")},
+    PRIMARY KEY (padrao, horizonte)
+);
+"""
