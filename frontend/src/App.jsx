@@ -28,7 +28,7 @@ function Entrar({ aoEntrar }) {
   return (
     <form onSubmit={entrar} className="max-w-md mx-auto mt-24 bg-painel border border-borda rounded-lg p-6 space-y-3">
       <h1 className="text-xl font-semibold">Projeto B3</h1>
-      <p className="text-sm text-apagado">Cole o API_TOKEN do seu .env (fica guardado só neste navegador).</p>
+      <p className="text-sm text-apagado">Cole o token de produção: o valor de API_TOKEN_PRODUCAO no seu .env (é o API_TOKEN do Render). Fica guardado só neste navegador.</p>
       <input type="password" value={valor} onChange={(e) => setValor(e.target.value)} autoFocus
              className="w-full bg-fundo border border-borda rounded px-3 py-2" placeholder="API_TOKEN" />
       {erro && <p className="text-baixa text-sm">{erro}</p>}
