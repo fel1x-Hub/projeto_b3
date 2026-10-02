@@ -45,3 +45,13 @@ def test_quantidade_por_dia():
                           ("ITUB4", "venda", "2026-01-07", 40, 31.0, 0.0)), None,
                       pd.DatetimeIndex(["2026-01-02", "2026-01-05", "2026-01-07"]))
     assert q["ITUB4"].tolist() == [0, 100, 60]
+
+
+def test_simular_venda_ir():
+    from src.carteira.servico import simular_venda
+    v = simular_venda(15000.0, 10000.0, True)
+    assert v["lucro"] == 5000 and v["ir_se_tributado"] == 750 and v["isento_se_so_esta_venda"]
+    assert simular_venda(30000.0, 20000.0, True)["isento_se_so_esta_venda"] is False
+    assert simular_venda(8000.0, 10000.0, True)["ir_se_tributado"] == 0
+    assert simular_venda(12000.0, 10000.0, False)["ir_se_tributado"] is None     # FII/ETF: regra própria
+    assert simular_venda(None, 10000.0, True) is None

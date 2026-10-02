@@ -327,7 +327,7 @@ def test_pontuacoes_e_previsoes(cliente):
     assert [(l["ticker"], l["pontuacao_compra"], l["pontuacao_venda"], l["sinal_1m"]) for l in linhas] == [
         ("PETR4", 100, 0, "compra"), ("VALE3", 0, 100, "venda")]
     a = cliente.get("/ativo/PETR4").json()["dados"]
-    assert a["pontuacao"] == {"compra": 100, "venda": 0}
+    assert a["pontuacao"] == {"compra": 100, "venda": 0, "chance_cair": None}   # sem calibração de venda no teste
     prev = a["previsoes"]
     assert len(prev) == 1 and prev[0]["prazo"] == "1 mês" and prev[0]["retorno_medio"] == 0.03 and prev[0]["faixa_min"] == 90
     assert a["padrao"]["grafico"] is None                  # 3 pregões de histórico: sem padrão

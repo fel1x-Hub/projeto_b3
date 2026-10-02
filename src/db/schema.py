@@ -468,3 +468,28 @@ CREATE TABLE padroes_efeito (
     PRIMARY KEY (padrao, horizonte)
 );
 """
+
+
+SCHEMA_V13 = f"""
+-- Nota de venda por "chance de cair" (docs/venda.md).
+CREATE TABLE venda (
+    {_data("data")},
+    ticker          TEXT NOT NULL,
+    versao          TEXT NOT NULL,
+    prob            REAL NOT NULL,              -- probabilidade do modelo (bruta)
+    chance_cair     REAL,                       -- calibrada: taxa de queda observada em casos parecidos
+    nota            INTEGER NOT NULL,           -- 0–100 (100 = maior chance de queda do universo no dia)
+    {_ts("disponivel_em")},
+    PRIMARY KEY (data, ticker, versao)
+);
+CREATE TABLE venda_calibracao (
+    versao          TEXT NOT NULL,
+    fonte           TEXT NOT NULL CHECK (fonte IN ('modelo', 'nota_atual')),
+    ordem           INTEGER NOT NULL,
+    prob_min        REAL NOT NULL, prob_max REAL NOT NULL, prob_media REAL NOT NULL,
+    taxa_real       REAL NOT NULL,
+    n               INTEGER NOT NULL,
+    {_ts("calculado_em")},
+    PRIMARY KEY (versao, ordem)
+);
+"""

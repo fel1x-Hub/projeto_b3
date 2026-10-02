@@ -92,6 +92,14 @@ CREATE TABLE IF NOT EXISTS padroes_efeito (
     chance_superar DOUBLE PRECISION, t DOUBLE PRECISION, conclusao TEXT NOT NULL, periodo_inicio TEXT NOT NULL,
     periodo_fim TEXT NOT NULL, calculado_em TEXT NOT NULL, PRIMARY KEY (padrao, horizonte));
 
+CREATE TABLE IF NOT EXISTS venda (
+    data TEXT NOT NULL, ticker TEXT NOT NULL, versao TEXT NOT NULL, prob DOUBLE PRECISION NOT NULL,
+    chance_cair DOUBLE PRECISION, nota INTEGER NOT NULL, disponivel_em TEXT NOT NULL, PRIMARY KEY (data, ticker, versao));
+CREATE TABLE IF NOT EXISTS venda_calibracao (
+    versao TEXT NOT NULL, fonte TEXT NOT NULL, ordem INTEGER NOT NULL, prob_min DOUBLE PRECISION NOT NULL,
+    prob_max DOUBLE PRECISION NOT NULL, prob_media DOUBLE PRECISION NOT NULL, taxa_real DOUBLE PRECISION NOT NULL,
+    n INTEGER NOT NULL, calculado_em TEXT NOT NULL, PRIMARY KEY (versao, ordem));
+
 CREATE TABLE IF NOT EXISTS usuarios (
     usuario TEXT PRIMARY KEY, senha_hash TEXT NOT NULL, criado_em TEXT NOT NULL);
 

@@ -28,6 +28,28 @@ def proventos_de(conn: sqlite3.Connection, tickers: list[str]) -> pd.DataFrame:
                         f"WHERE ticker IN ({','.join('?' * len(tickers))})", tickers)
 
 
+ISENCAO_MENSAL_ACOES = 20_000.0   # vendas de ações no mês até este valor: lucro isento de IR (pessoa física)
+ALIQUOTA_ACOES = 0.15             # operações comuns (não day trade)
+
+
+def simular_venda(valor: float | None, custo: float | None, eh_acao: bool) -> dict | None:
+    """Vender a posição inteira agora: valor, lucro e IR estimado (regra simplificada; não é orientação fiscal)."""
+    if valor is None or not custo:
+        return None
+    lucro = valor - custo
+    if not eh_acao:
+        regra = "FII/ETF/BDR têm regras de IR próprias (sem a isenção de R$ 20 mil): confira antes de vender"
+        ir = None
+    elif lucro <= 0:
+        regra = "sem lucro: não há IR (o prejuízo pode compensar lucros futuros em ações)"
+        ir = 0.0
+    else:
+        regra = (f"isento se o total vendido em ações no mês ficar até R$ 20 mil; acima disso, 15% sobre o lucro")
+        ir = ALIQUOTA_ACOES * lucro
+    return {"valor": valor, "lucro": lucro, "ir_se_tributado": ir, "regra_ir": regra,
+            "isento_se_so_esta_venda": eh_acao and valor <= ISENCAO_MENSAL_ACOES}
+
+
 def leitura(posicao: int | None) -> str:
     """Leitura do ranking para um papel que o usuário TEM (não é recomendação)."""
     if posicao is None:
@@ -53,6 +75,7 @@ def montar(conn: sqlite3.Connection, hoje: date | None = None) -> dict:
     total_ranking = len(rank)
     fat = consultas.fatores(conn, vigor, tickers)
     notas = consultas.pontuacoes(conn, vigor)
+    acoes = {r[0] for r in conn.execute("SELECT ticker FROM ativos WHERE tipo = 'acao'")}
     nomes = consultas.nomes(conn)
 
     linhas, avisos = [], []
@@ -89,6 +112,8 @@ def montar(conn: sqlite3.Connection, hoje: date | None = None) -> dict:
             "posicao_ranking": posicao_rank, "total_ranking": total_ranking,
             "leitura": leitura(posicao_rank), "fatores": fat.get(t, []),
             "pontuacao_compra": notas.get(t, {}).get("compra"), "pontuacao_venda": notas.get(t, {}).get("venda"),
+            "chance_cair": notas.get(t, {}).get("chance_cair"),
+            "vender_agora": simular_venda(valor, custo, t in acoes),
         })
 
     valor_total = sum(l["valor"] or 0 for l in linhas)

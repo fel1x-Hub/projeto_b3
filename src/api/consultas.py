@@ -298,11 +298,25 @@ def pontuacoes(conn: sqlite3.Connection, vigor: dict | None) -> dict[str, dict]:
                          (OFICIAL, vigor["data"], DIAS_QUEDA)).fetchone()
     rank_antes = posicoes_ranking(conn, {"data": antes[0], "versao": OFICIAL}) if antes else {}
     total_antes = len(rank_antes)
+    from src.ranking import venda
+    fonte, tabela = venda.calibracao_em_uso(conn)
+    do_modelo = {}
+    if fonte == "modelo":
+        dia = conn.execute("SELECT MAX(data) FROM venda WHERE versao = ? AND data <= ?",
+                           (venda.VERSAO, vigor["data"])).fetchone()[0]
+        if dia:
+            do_modelo = {r[0]: (r[1], r[2]) for r in conn.execute(
+                "SELECT ticker, nota, chance_cair FROM venda WHERE versao = ? AND data = ?", (venda.VERSAO, dia))}
     saida = {}
     for t, (pos, _) in rank.items():
         compra = cal.pontuacao_compra(pos, total)
         compra_antes = cal.pontuacao_compra(rank_antes[t][0], total_antes) if t in rank_antes else None
-        saida[t] = {"compra": round(compra), "venda": round(cal.pontuacao_venda(compra, compra_antes))}
+        nota_venda = cal.pontuacao_venda(compra, compra_antes)
+        if t in do_modelo:
+            nota_venda, chance = do_modelo[t]
+        else:   # nota atual, com a chance de cair calibrada por faixa dela
+            chance = venda.chance_calibrada(nota_venda, tabela) if fonte == "nota_atual" else None
+        saida[t] = {"compra": round(compra), "venda": round(nota_venda), "chance_cair": chance}
     return saida
 
 

@@ -32,6 +32,35 @@ Se N falhar, a nota atual continua. Mesmo assim, a tela passa a mostrar a **chan
 - **Chance de cair:** "chance de cair no próximo mês: X%", em valor absoluto e calibrado.
 - **Na sua carteira:** ao lado, o seu lucro ou prejuízo. Ele não entra na nota. Também aparece um aviso de IR quando a venda gera lucro e as vendas de ações no mês passam de R$ 20 mil.
 
-## Resultados
+## Resultados (02/10/2026)
 
-(preenchido por `scripts/avaliar_venda.py`)
+- Período fora da amostra: 03/10/2022 a 31/08/2026. 272.642 casos. Taxa de queda em 1 mês no período: 49.1%.
+
+| Nota | AUC | queda real no decil de maior nota |
+|---|---|---|
+| N · modelo novo | 0.527 | 58.6% |
+| A · nota atual | 0.544 | 58.7% |
+| B · 100 − compra | 0.545 | 59.1% |
+
+### Calibração do modelo novo (por decil de probabilidade)
+
+| prob. prevista | queda real | casos |
+|---|---|---|
+| 29.1% | 41.6% | 27265 |
+| 42.5% | 49.3% | 27264 |
+| 45.3% | 47.7% | 27264 |
+| 47.4% | 48.6% | 27264 |
+| 49.4% | 49.4% | 27264 |
+| 51.6% | 50.5% | 27264 |
+| 54.0% | 51.0% | 27264 |
+| 57.2% | 51.2% | 27264 |
+| 62.4% | 48.9% | 27264 |
+| 76.4% | 53.0% | 27265 |
+
+### Critério pré-registrado
+
+- ❌ AUC de N ≥ AUC de A + 0,01
+- ❌ taxa de queda no decil de maior nota: N > A
+- ❌ calibração: previsto vs realizado ≤ 5 p.p. em todo decil
+
+**Decisão: a nota atual continua.** A chance de cair mostrada no app vem da calibração de A (tabela venda_calibracao).

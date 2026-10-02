@@ -294,8 +294,10 @@ def html_previsoes(nota, previsoes, padrao) -> str:
     cor = {"compra": VERDE, "venda": VERMELHO}
     partes = []
     if nota:
+        chance = (f" · chance de cair no próximo mês: <b>{pct(nota['chance_cair'], 0, False)}</b>"
+                  if nota.get("chance_cair") is not None else "")
         partes.append(f"<span style='font-size:20px'><b style='color:{VERDE}'>Compra {nota['compra']}</b> · "
-                      f"<b style='color:{VERMELHO}'>Venda {nota['venda']}</b></span> <span style='color:{CINZA}'>(0 a 100)</span>")
+                      f"<b style='color:{VERMELHO}'>Venda {nota['venda']}</b></span> <span style='color:{CINZA}'>(0 a 100)</span>{chance}")
     tend = (padrao or {}).get("tendencia")
     graf = (padrao or {}).get("grafico")
     linha = f"Tendência: <b>{tend['tendencia']}</b>" if tend else "Tendência: –"
@@ -384,6 +386,9 @@ class AbaCarteira(Aba):
                              ("Ranking", "posicao_ranking", lambda v: "–" if v is None else f"#{v}", False),
                              ("Compra", "pontuacao_compra", lambda v: "–" if v is None else str(v), False),
                              ("Venda", "pontuacao_venda", lambda v: "–" if v is None else str(v), False),
+                             ("Chance de cair", "chance_cair", lambda v: pct(v, 0, False), False),
+                             ("Lucro se vender", "lucro_venda", reais, True),
+                             ("IR se tributado", "ir_venda", reais, False),
                              ("Leitura", "leitura", None, False)])
         v_pos, self.p_pos = tabela_view(self.m_pos)
         v_pos.doubleClicked.connect(lambda i: self.abrir_ativo.emit(self.m_pos.linha(self.p_pos.mapToSource(i).row())["ticker"]))
@@ -417,7 +422,8 @@ class AbaCarteira(Aba):
             fonte = "carteira vazia: registre uma operação, importe o extrato da B3/XP ou sincronize a XP (Meu Pluggy)"
         self.info.setText(f"Fonte: {fonte}" + (f" · ⚠ {len(d['avisos'])} aviso(s)" if d["avisos"] else ""))
         self.info.setToolTip("\n".join(d["avisos"]))
-        self.m_pos.definir(d["posicoes"])
+        self.m_pos.definir([{**p, "lucro_venda": (p.get("vender_agora") or {}).get("lucro"),
+                             "ir_venda": (p.get("vender_agora") or {}).get("ir_se_tributado")} for p in d["posicoes"]])
 
     def _indicacoes(self, d):
         r = d.get("ranking") or {}
