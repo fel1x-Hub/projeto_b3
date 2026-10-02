@@ -218,6 +218,34 @@ São da extração de eventos com LLM (etapa 3.4).
 - **`llm_cache`:** as respostas, indexadas por um hash da entrada, do modelo e da versão do prompt, para nunca reprocessar.
 - **`llm_erros`:** respostas fora do schema e falhas.
 
+### `carteira_operacoes` *(v9)*
+Compras e vendas da carteira real, manuais ou importadas de extrato. A posição **nunca é gravada**: é recalculada destas linhas (preço médio pela regra da Receita, desdobramentos de `proventos`). Ver [src/carteira/posicoes.py](../src/carteira/posicoes.py).
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| id | INTEGER PK | |
+| ticker | TEXT | Sem FK: a carteira pode ter papéis fora do universo (FII, ETF). |
+| tipo | TEXT | `compra` ou `venda`. |
+| data | date | Data do negócio. |
+| quantidade, preco | REAL > 0 | |
+| custos | REAL ≥ 0 | Corretagem e emolumentos. |
+| origem | TEXT | `manual` ou `importacao`. |
+| referencia | TEXT UNIQUE | Na importação, é o hash do conteúdo da linha mais a ordem entre linhas idênticas. Reimportar não duplica. |
+| criado_em | timestamp | |
+
+### `carteira_sincronizada` *(v9)*
+Foto das posições da corretora via Meu Pluggy (Open Finance). É substituída inteira a cada sincronização. Quando existe, a quantidade vem daqui.
+
+| Coluna | Tipo | Notas |
+|---|---|---|
+| ticker | TEXT PK | Fracionário somado ao lote (PETR4F → PETR4). |
+| quantidade | REAL | |
+| valor_aplicado | REAL | Custo informado pela corretora (`amountOriginal`). |
+| valor_corretora | REAL | Valor de mercado segundo a corretora (`amount`). |
+| instituicao | TEXT | |
+| data_corretora | timestamp | Data de referência do dado na corretora. |
+| sincronizado_em | timestamp | |
+
 ### `execucoes_coleta`
 Uma linha por fonte a cada execução da coleta.
 

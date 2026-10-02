@@ -1,0 +1,7 @@
+Data do Negócio;Tipo de Movimentação;Mercado;Prazo/Vencimento;Instituição;Código de Negociação;Quantidade;Preço;Valor
+05/01/2026;Compra;Mercado à Vista;-;XP INVESTIMENTOS CCTVM S/A;PETR4;100;R$ 30,50;R$ 3.050,00
+05/01/2026;Compra;Mercado Fracionário;-;XP INVESTIMENTOS CCTVM S/A;PETR4F;7;R$ 30,50;R$ 213,50
+12/02/2026;Compra;Mercado à Vista;-;XP INVESTIMENTOS CCTVM S/A;WEGE3;200;R$ 1.040,00;R$ 208.000,00
+15/03/2026;Venda;Mercado à Vista;-;XP INVESTIMENTOS CCTVM S/A;PETR4;50;R$ 35,00;R$ 1.750,00
+20/03/2026;Transferência;Mercado à Vista;-;XP INVESTIMENTOS CCTVM S/A;ITUB4;10;R$ 30,00;R$ 300,00
+20/03/2026;Compra;Opções;-;XP INVESTIMENTOS CCTVM S/A;PETRC300;100;R$ 0,50;R$ 50,00

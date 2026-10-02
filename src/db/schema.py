@@ -377,3 +377,37 @@ CREATE TABLE cotacao_atual (
     {_ts("coletado_em")}
 );
 """
+
+
+SCHEMA_V9 = f"""
+-- Carteira real do usuário (etapa 7, regras 11 e 16). A posição nunca é
+-- gravada: é recalculada das operações. `ticker` sem FK porque a carteira
+-- pode ter papéis fora do universo do modelo (FII, ETF, BDR...).
+-- `referencia` identifica a linha de origem de uma importação (hash do
+-- arquivo + linha), para reimportar o mesmo extrato sem duplicar.
+CREATE TABLE carteira_operacoes (
+    id            INTEGER PRIMARY KEY,
+    ticker        TEXT NOT NULL CHECK (ticker GLOB '[A-Z][A-Z0-9][A-Z0-9][A-Z0-9]*'),
+    tipo          TEXT NOT NULL CHECK (tipo IN ('compra', 'venda')),
+    {_data("data")},
+    quantidade    REAL NOT NULL CHECK (quantidade > 0),
+    preco         REAL NOT NULL CHECK (preco > 0),
+    custos        REAL NOT NULL DEFAULT 0 CHECK (custos >= 0),   -- corretagem + emolumentos
+    origem        TEXT NOT NULL CHECK (origem IN ('manual', 'importacao')),
+    referencia    TEXT UNIQUE,
+    {_ts("criado_em")}
+);
+CREATE INDEX idx_carteira_operacoes_ticker ON carteira_operacoes (ticker, data);
+
+-- Foto das posições sincronizadas da corretora (Meu Pluggy / Open Finance).
+-- Substituída a cada sincronização; a instituição atualiza ~1 vez por dia.
+CREATE TABLE carteira_sincronizada (
+    ticker          TEXT PRIMARY KEY,
+    quantidade      REAL NOT NULL CHECK (quantidade >= 0),
+    valor_aplicado  REAL,                        -- custo informado pela corretora, se houver
+    valor_corretora REAL,                        -- valor de mercado segundo a corretora
+    instituicao     TEXT NOT NULL,
+    {_ts("data_corretora", obrigatorio=False)},  -- data de referência do dado na corretora
+    {_ts("sincronizado_em")}
+);
+"""

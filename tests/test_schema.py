@@ -9,12 +9,13 @@ TABELAS = {
     "documentos", "execucoes_coleta", "revisoes", "schema_versao",
     "proventos", "demonstracoes",
     "sinais", "sentimento_noticias", "eventos_documentos", "llm_cache", "llm_erros", "universo", "ranking", "paper_config", "paper_carteira", "paper_patrimonio", "ranking_fatores", "cotacao_atual",
+    "carteira_operacoes", "carteira_sincronizada",
 }
 INDICES = {
     "idx_noticias_disponivel_em", "idx_noticias_ativos_ticker",
     "idx_documentos_ticker_disponivel", "idx_execucoes_fonte_inicio",
     "uq_demonstracoes", "idx_demonstracoes_documento", "idx_demonstracoes_cia_disponivel",
-    "idx_sinais_nome_data", "idx_universo_ticker", "idx_ranking_versao_data",
+    "idx_sinais_nome_data", "idx_universo_ticker", "idx_ranking_versao_data", "idx_carteira_operacoes_ticker",
 }
 
 

@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from config import settings  # noqa: E402
 from src.coleta import (  # noqa: E402
-    b3_cotahist, bcb_sgs, cvm_cadastro, cvm_dfp_itr, cvm_ipe, eventos_manuais, noticias_rss, resumo,
+    b3_cotahist, bcb_sgs, cvm_cadastro, cvm_dfp_itr, cvm_ipe, eventos_manuais, noticias_rss, pluggy, resumo,
     yfinance_proventos,
 )
 from src.coleta.execucao import executar  # noqa: E402
@@ -46,6 +46,7 @@ FONTES = [
     (cvm_ipe.FONTE, cvm_ipe.coletar, "cvm"),
     (cvm_dfp_itr.FONTE, cvm_dfp_itr.coletar, "cvm"),
     ("rss", noticias_rss.coletar, "rss"),
+    ("carteira_xp", pluggy.coletar, "carteira"),   # só com PLUGGY_* no .env; sem elas, não faz nada
 ]
 GRUPOS = sorted({g for _, _, g in FONTES})
 
