@@ -63,7 +63,7 @@ describe("useApi (regra 15)", () => {
 
 describe("Previsoes", () => {
   it("mostra notas, tendência, padrão com efeito medido e o aviso de que não é promessa", () => {
-    render(<Previsoes pontuacao={{ compra: 87, venda: 13 }}
+    render(<Previsoes pontuacao={{ compra: 87 }}
       padrao={{ tendencia: { tendencia: "alta", acima_mm50: true, acima_mm200: true, retorno_3m: 0.12 },
                 grafico: { nome: "Fundo duplo", direcao_classica: "alta",
                            efeito_historico: [{ horizonte: 21, conclusao: "sem efeito comprovado no histórico em 1 mês (40 casos)" }] } }}

@@ -106,7 +106,8 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 
 **Pontuações e previsões (pedido do usuário, 02/10/2026; modelo v2 aprovado pelo usuário).**
 - **Modelo em uso: `lgbm-v2`.** É o LightGBM com restrições monotônicas, aprovado no pré-registro (`docs/ranking_v2.md`). A carteira simulada reiniciou com ele; o resultado do v1 ficou arquivado em `paper_config`.
-- **Pontuação de compra (0–100):** a posição no ranking. **Pontuação de venda:** 100 − compra, mais metade da queda da nota em 10 pregões (`src/ranking/calibracao.py`).
+- **Pontuação de compra (0–100):** a posição no ranking. É a única nota mostrada.
+- **Nota de venda:** saiu das telas a pedido do usuário (02/10/2026). O modelo de "chance de cair" foi reprovado no pré-registro (`docs/venda.md`); a API ainda calcula a nota, sem uso nas telas.
 - **Previsões de 1, 6 e 12 meses:** o histórico fora da amostra da faixa de pontuação, nunca promessa (`scripts/calibrar.py`, tabela `calibracao`, resumo em `docs/previsoes.md`). O sinal exige t ≥ 2 e pelo menos 8 janelas independentes.
   - Achado: o modelo acerta mais nas **piores** ações. A faixa 0–10 fica −3,4 p.p. abaixo do mercado em 1 mês. O topo empata com o mercado.
 - **Padrão:**

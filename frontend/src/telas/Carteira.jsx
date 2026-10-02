@@ -19,8 +19,6 @@ export const COLUNAS_CARTEIRA = [
   { titulo: "Proventos", chave: "proventos", fmt: reais },
   { titulo: "Ranking", chave: "posicao_ranking", fmt: (v) => (v ? `#${v}` : "–") },
   { titulo: "Compra", chave: "pontuacao_compra", fmt: (v) => (v ?? "–").toString() },
-  { titulo: "Venda", chave: "pontuacao_venda", fmt: (v) => (v ?? "–").toString() },
-  { titulo: "Chance de cair (1 mês)", chave: "chance_cair", fmt: (v) => pct(v, 0, false) },
   { titulo: "Lucro se vender", chave: "lucro_venda", fmt: reais, colorir: true },
   { titulo: "IR se tributado", chave: "ir_venda", fmt: reais },
   { titulo: "Leitura", chave: "leitura" },
@@ -151,7 +149,7 @@ export default function Carteira({ aoEnvelope, abrirAtivo }) {
               linhas={d.posicoes.map((p) => ({ ...p, lucro_venda: p.vender_agora?.lucro, ir_venda: p.vender_agora?.ir_se_tributado }))}
               ordemInicial={{ chave: "valor", asc: false }} />
       <p className="text-xs text-apagado">IR (estimativa simplificada, não é orientação fiscal): vendas de ações até R$ 20 mil no mês
-        são isentas; acima disso, 15% sobre o lucro. FII, ETF e BDR têm regras próprias. A nota de venda não usa o seu preço de compra.</p>
+        são isentas; acima disso, 15% sobre o lucro. FII, ETF e BDR têm regras próprias.</p>
       <div className="grid lg:grid-cols-2 gap-3">
         {ind.dados ? <Indicacoes d={ind.dados} abrirAtivo={abrirAtivo} /> : <Carregando />}
         <div className="h-[28rem] bg-painel border border-borda rounded-lg p-2">

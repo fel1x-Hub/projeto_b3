@@ -21,14 +21,6 @@ export default function Previsoes({ pontuacao, previsoes, padrao }) {
     <div className="bg-painel border border-borda rounded-lg p-3 mb-3 space-y-3">
       <div className="flex flex-wrap gap-3 items-center">
         <Nota rotulo="Para comprar" valor={pontuacao?.compra} cor="text-alta" />
-        <Nota rotulo="Para vender" valor={pontuacao?.venda} cor="text-baixa" />
-        {pontuacao?.chance_cair != null && (
-          <div className="bg-fundo border border-borda rounded-lg px-4 py-2 text-center min-w-28">
-            <div className="text-xs text-apagado">Chance de cair</div>
-            <div className="text-3xl font-bold">{pct(pontuacao.chance_cair, 0, false)}</div>
-            <div className="text-xs text-apagado">no próximo mês*</div>
-          </div>
-        )}
         <div className="text-sm space-y-1">
           <div>Tendência do preço: {tend ? <b className={COR_TEND[tend.tendencia]}>{tend.tendencia}</b> : "–"}
             {tend && <span className="text-apagado"> (preço {tend.acima_mm50 ? "acima" : "abaixo"} da média de 50 dias e {tend.acima_mm200 ? "acima" : "abaixo"} da de 200; 3 meses {pct(tend.retorno_3m)})</span>}
@@ -61,7 +53,6 @@ export default function Previsoes({ pontuacao, previsoes, padrao }) {
             </tbody>
           </table>
           <p className="text-xs text-apagado mt-1">
-            * Chance de cair: quantas vezes ações em situação parecida caíram no mês seguinte, no histórico.
             Não é promessa: é o que aconteceu, fora da amostra, com ações na mesma faixa de pontuação
             ({previsoes[0].faixa_min}–{previsoes[0].faixa_max}) entre {previsoes[0].periodo_inicio} e {previsoes[0].periodo_fim}.
             Sinal só com evidência estatística; prazos longos têm pouco histórico.

@@ -143,7 +143,6 @@ class AbaRanking(Aba):
         self.modelo = Tabela([("#", "posicao", lambda v: str(v), False), ("Ticker", "ticker", None, False),
                               ("Nome", "nome", None, False),
                               ("Compra 0–100", "pontuacao_compra", lambda v: "–" if v is None else str(v), False),
-                              ("Venda 0–100", "pontuacao_venda", lambda v: "–" if v is None else str(v), False),
                               ("Sinal 1m", "sinal_1m", None, False),
                               ("Score", "score", lambda v: num(v, 3), False),
                               ("Preço", "preco", reais, False), ("Dia", "variacao_dia", pct, True),
@@ -294,10 +293,8 @@ def html_previsoes(nota, previsoes, padrao) -> str:
     cor = {"compra": VERDE, "venda": VERMELHO}
     partes = []
     if nota:
-        chance = (f" · chance de cair no próximo mês: <b>{pct(nota['chance_cair'], 0, False)}</b>"
-                  if nota.get("chance_cair") is not None else "")
-        partes.append(f"<span style='font-size:20px'><b style='color:{VERDE}'>Compra {nota['compra']}</b> · "
-                      f"<b style='color:{VERMELHO}'>Venda {nota['venda']}</b></span> <span style='color:{CINZA}'>(0 a 100)</span>{chance}")
+        partes.append(f"<span style='font-size:20px'><b style='color:{VERDE}'>Nota de compra {nota['compra']}</b></span> "
+                      f"<span style='color:{CINZA}'>(0 a 100)</span>")
     tend = (padrao or {}).get("tendencia")
     graf = (padrao or {}).get("grafico")
     linha = f"Tendência: <b>{tend['tendencia']}</b>" if tend else "Tendência: –"
@@ -385,8 +382,6 @@ class AbaCarteira(Aba):
                              ("Ano (papel)", "retorno_ano", pct, True), ("Proventos", "proventos", reais, False),
                              ("Ranking", "posicao_ranking", lambda v: "–" if v is None else f"#{v}", False),
                              ("Compra", "pontuacao_compra", lambda v: "–" if v is None else str(v), False),
-                             ("Venda", "pontuacao_venda", lambda v: "–" if v is None else str(v), False),
-                             ("Chance de cair", "chance_cair", lambda v: pct(v, 0, False), False),
                              ("Lucro se vender", "lucro_venda", reais, True),
                              ("IR se tributado", "ir_venda", reais, False),
                              ("Leitura", "leitura", None, False)])
