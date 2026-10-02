@@ -26,7 +26,10 @@ jobs:
       - id: banco
         uses: actions/cache/restore@v6
         with:
-          path: data/b3.db
+          # mesmos caminhos do salvamento: a lista de caminhos faz parte da identidade do cache
+          path: |
+            data/b3.db
+            data/modelos
           key: banco-v1-${{ github.run_id }}
           restore-keys: banco-v1-
           lookup-only: true
