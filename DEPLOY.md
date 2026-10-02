@@ -1,6 +1,17 @@
 # Deploy na nuvem (grátis, sem cartão)
 
-Este arquivo **não guarda segredos**. As linhas "→ preencha" são para você anotar só onde cada coisa está, nunca o valor.
+Este arquivo **não guarda segredos**: só endereços e onde cada credencial está.
+
+## Em produção (desde 02/10/2026)
+
+| O quê | Onde |
+|---|---|
+| Site | https://projeto-b3-theta.vercel.app (Vercel, projeto `projeto-b3`) |
+| API | https://projeto-b3-api.onrender.com (Render, serviço `projeto-b3-api`) · saúde: `/health` |
+| Banco das telas | Neon, projeto `projeto-b3` (aws-us-east-1, Postgres 18) |
+| Pipeline | GitHub Actions: *Ciclo intradiário*, *Pipeline diário* e *Inicializar nuvem* |
+| Banco de trabalho | cache do Actions (`banco-v1-*`); pacote inicial e backup semanal no Release `dados` |
+| App desktop | Release `desktop-v1.0` → `ProjetoB3.exe` |
 
 ## Como funciona
 
@@ -19,7 +30,7 @@ A carteira (operações e posições da XP) vive **só no Neon**, nunca no repos
 ### 1. Neon (banco)
 1. Entre em neon.tech com o GitHub. Crie um projeto `projeto-b3`, com Postgres 17 e região AWS US East (N. Virginia).
 2. Em **Connect**, copie a *connection string* (`postgresql://...`). Ela é a `DATABASE_URL`.
-   - Onde ficou: painel do Neon → projeto `projeto-b3` → Connect → preencha: ____
+   - Feito em 02/10/2026 (projeto `projeto-b3`).
 
 ### 2. Segredos do GitHub (para o pipeline)
 No repositório: **Settings → Secrets and variables → Actions → New repository secret**. Cadastre:
@@ -42,16 +53,16 @@ No repositório: **Settings → Secrets and variables → Actions → New reposi
    - `API_ORIGENS` (deixe `https://exemplo.vercel.app` por enquanto; o passo 5 troca);
    - os `PLUGGY_*`, que são opcionais.
 3. Depois do deploy, anote:
-   - **URL da API** (ex.: `https://projeto-b3-api.onrender.com`) → preencha: ____
-   - **API_TOKEN**: foi gerado pelo Render e é diferente do de desenvolvimento. Fica em serviço → Environment → preencha onde ficou: ____
+   - **URL da API:** https://projeto-b3-api.onrender.com
+   - **API_TOKEN**: gerado pelo Render e diferente do de desenvolvimento. Fica em serviço → Environment, e uma cópia em `API_TOKEN_PRODUCAO` no `.env` local.
 4. Teste abrindo `<URL>/health` no navegador. Deve responder `{"ok": true}`, podendo levar ~1 min na primeira vez.
 
 ### 5. Vercel (site)
 1. Entre em vercel.com com o GitHub. Vá em **Add New → Project** e importe `projeto_b3`.
 2. Em **Root Directory**, coloque `frontend`. A Vercel detecta o Vite sozinha.
 3. Em **Environment Variables**, crie `VITE_API_URL` com a URL da API (passo 4). Faça o deploy.
-4. Anote a **URL do site** → preencha: ____
-5. No Render, troque `API_ORIGENS` pela URL do site (sem `/` no fim). Salvar já refaz o deploy.
+4. **URL do site:** https://projeto-b3-theta.vercel.app
+5. O CORS já aceita os endereços `projeto-b3*.vercel.app` (`API_ORIGENS_REGEX` no `render.yaml`). Não precisa mexer no Render.
 6. Abra o site e cole o `API_TOKEN` do Render.
 
 ### 6. App desktop

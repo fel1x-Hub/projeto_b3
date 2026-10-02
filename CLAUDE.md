@@ -95,7 +95,13 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - O Render roda a API (`render.yaml`, ela dorme sem uso), o Vercel roda o site (`frontend/`) e o GitHub Releases distribui o `.exe` (workflow `desktop.yml`).
 - A API roda igual em SQLite e Postgres (`src/db/nuvem.py`). Os testes da API rodam nos dois com `TEST_DATABASE_URL` (Postgres portátil em `%LOCALAPPDATA%\pgsql`, porta 54329).
 - A carteira nunca vai para o repositório nem para o pacote público (`scripts/empacotar_banco.py` a esvazia na cópia).
-- 🙋 Pendente do usuário: contas Neon, Render e Vercel; segredos no GitHub; o Release `dados` com `data/banco.tar.gz`; rodar "Inicializar nuvem". Depois, desligar o agendador local.
+- ✅ No ar desde 02/10/2026 (deploy assistido):
+  - site: https://projeto-b3-theta.vercel.app
+  - API: https://projeto-b3-api.onrender.com
+  - Neon: `projeto-b3`
+  - segredos no GitHub via `gh` portátil (`%LOCALAPPDATA%\gh`), sem passar pelo chat
+  - ciclo intradiário testado na nuvem
+- Falta conferir o critério das 24 h (ciclos do pregão e pipeline das 21h30). Depois disso, perguntar ao usuário se desliga o agendador local.
 - Critério de pronto: `/health` em produção, site público conectado, `.exe` funcionando, dados históricos no Neon e coleta agendada verificada após 24 h.
 
 ## Stack
