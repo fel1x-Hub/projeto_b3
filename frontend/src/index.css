@@ -1,22 +1,56 @@
+/* Fonte livre parecida com a tipografia do IDL (a Itaú Display/Text é proprietária) */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 
-/* Tema escuro (mesmas cores do app desktop) */
+/*
+ * Tema claro inspirado nos elementos públicos do Itaú Design Language (IDL):
+ * laranja como cor de ação, fundo cinza-claro, cartões brancos arredondados,
+ * botões em pílula e texto grafite. Sem logo, nome ou fonte do Itaú: este é um
+ * projeto pessoal, sem vínculo com o banco.
+ */
 @theme {
-  --color-fundo: #0d1117;
-  --color-painel: #161b22;
-  --color-borda: #30363d;
-  --color-texto: #e6edf3;
-  --color-apagado: #8b949e;
-  --color-alta: #3fb950;
-  --color-baixa: #f85149;
-  --color-atencao: #d29922;
-  --color-destaque: #58a6ff;
+  --font-sans: "Inter", system-ui, "Segoe UI", sans-serif;
+  --color-fundo: #f4f4f4;
+  --color-painel: #ffffff;
+  --color-borda: #e4e2e0;
+  --color-texto: #252220;
+  --color-apagado: #6e6b68;
+  --color-alta: #0a7c2f;
+  --color-baixa: #c8102e;
+  --color-atencao: #b25e00;
+  --color-destaque: #ec7000;
+  --color-destaque-escuro: #c45d00;
+  --color-suave: #fff1e5;
 }
 
-body { font-family: system-ui, "Segoe UI", sans-serif; }
-.markdown h1 { font-size: 1.5rem; font-weight: 700; margin: 0.5rem 0; }
-.markdown h2 { font-size: 1.15rem; font-weight: 600; margin: 1rem 0 0.4rem; }
+body {
+  font-family: var(--font-sans);
+  background: var(--color-fundo);
+  color: var(--color-texto);
+  font-feature-settings: "tnum";          /* números alinhados nas tabelas */
+}
+
+@layer components {
+  .btn-primario {
+    @apply rounded-full bg-destaque px-5 py-2 font-semibold text-white transition-colors hover:bg-destaque-escuro disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-secundario {
+    @apply rounded-full border border-destaque px-4 py-1.5 font-semibold text-destaque transition-colors hover:bg-suave disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .cartao {
+    @apply rounded-2xl border border-borda bg-painel shadow-sm;
+  }
+  .campo {
+    @apply rounded-xl border border-borda bg-painel px-3 py-2 outline-none focus:border-destaque focus:ring-2 focus:ring-destaque/20;
+  }
+  .selo {
+    @apply rounded-full bg-destaque px-2 py-0.5 text-xs font-semibold text-white;
+  }
+}
+
+.markdown h1 { font-size: 1.5rem; font-weight: 800; margin: 0.5rem 0; }
+.markdown h2 { font-size: 1.15rem; font-weight: 700; margin: 1.2rem 0 0.4rem; color: var(--color-destaque-escuro); }
 .markdown ul { list-style: disc; padding-left: 1.4rem; }
 .markdown ul ul { list-style: circle; }
 .markdown p { margin: 0.4rem 0; }
-.markdown a { color: var(--color-destaque); }
+.markdown a { color: var(--color-destaque-escuro); text-decoration: underline; }

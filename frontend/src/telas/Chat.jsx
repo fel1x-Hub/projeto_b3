@@ -34,11 +34,11 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col h-[78vh]">
-      <div className="flex-1 overflow-auto bg-painel border border-borda rounded-lg p-3 space-y-3">
+      <div className="flex-1 overflow-auto cartao p-4 space-y-4">
         {mensagens.length === 0 && <p className="text-apagado">Pergunte sobre ações, o ranking ou sua carteira.</p>}
         {mensagens.map((m, i) => (
           <div key={i}>
-            <b className={m.papel === "usuario" ? "text-destaque" : "text-alta"}>{m.papel === "usuario" ? "Você" : "Assistente"}:</b>
+            <b className={m.papel === "usuario" ? "text-destaque-escuro" : "text-texto"}>{m.papel === "usuario" ? "Você" : "Assistente"}:</b>
             <div className="markdown">{m.papel === "usuario" ? <p>{m.texto}</p> : <Markdown>{m.texto}</Markdown>}</div>
             {m.avisos?.length > 0 && <p className="text-atencao text-sm">⚠ números não verificados: {m.avisos.join(", ")}</p>}
           </div>
@@ -49,13 +49,13 @@ export default function Chat() {
       </div>
       <div className="flex flex-wrap gap-2 my-2">
         {(sugestoes.dados || []).slice(0, 4).map((s) => (
-          <button key={s} onClick={() => enviar(s)} className="text-xs bg-borda hover:bg-destaque/40 rounded px-2 py-1">{s}</button>
+          <button key={s} onClick={() => enviar(s)} className="btn-secundario text-xs">{s}</button>
         ))}
       </div>
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); enviar(); }}>
         <input value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Sua pergunta…"
-               className="flex-1 bg-painel border border-borda rounded px-3 py-2" />
-        <button disabled={esperando} className="bg-destaque/60 hover:bg-destaque rounded px-4 disabled:opacity-50">Enviar</button>
+               className="campo flex-1" />
+        <button disabled={esperando} className="btn-primario">Enviar</button>
       </form>
       <Aviso />
     </div>

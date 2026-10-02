@@ -33,9 +33,9 @@ export default function Ranking({ aoEnvelope, abrirAtivo }) {
       <Erro erro={erro} />
       <div className="flex flex-wrap gap-3 items-center mb-3">
         <input value={filtro} onChange={(e) => setFiltro(e.target.value)} placeholder="Filtrar por ticker ou nome…"
-               className="bg-painel border border-borda rounded px-3 py-1.5 flex-1 min-w-48" />
+               className="campo flex-1 min-w-48" />
         <span className="text-sm">
-          Ranking de {r.data} · {r.provisorio ? <b className="text-atencao">PROVISÓRIO (intradiário)</b> : "oficial"}
+          Ranking de {r.data} · {r.provisorio ? <span className="selo">PROVISÓRIO (intradiário)</span> : "oficial"}
         </span>
       </div>
       <div className="max-h-[70vh] overflow-auto">

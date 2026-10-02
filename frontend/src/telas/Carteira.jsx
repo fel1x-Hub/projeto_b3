@@ -3,6 +3,7 @@ import { Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } f
 import { chamar, useApi } from "../api.js";
 import { Aviso, Card, Carregando, Erro, Tabela } from "../comum.jsx";
 import { corValor, hora, num, pct, reais } from "../fmt.js";
+import { COR, DICA, EIXO } from "../tema.js";
 
 export const COLUNAS_CARTEIRA = [
   { titulo: "Ticker", chave: "ticker" },
@@ -49,7 +50,7 @@ function Indicacoes({ d, abrirAtivo }) {
     </div>
   );
   return (
-    <div className="bg-painel border border-borda rounded-lg p-3 max-h-[28rem] overflow-auto">
+    <div className="cartao p-4 max-h-[28rem] overflow-auto">
       <p className="text-xs text-apagado">Ranking de {d.ranking?.data}{d.ranking?.provisorio ? " (provisório)" : ""}. {d.regra}</p>
       {bloco("Considerar vender", "text-baixa", d.vender, "posicao_ranking")}
       {bloco("Observar", "text-atencao", d.observar, "posicao_ranking")}
@@ -66,7 +67,7 @@ function NovaOperacao({ aoSalvar }) {
   const [msg, setMsg] = useState(null);
   const campo = (k, props = {}) => (
     <input value={op[k]} onChange={(e) => setOp({ ...op, [k]: e.target.value })} required
-           className="bg-fundo border border-borda rounded px-2 py-1 w-28" {...props} />
+           className="campo w-28 py-1.5" {...props} />
   );
   const salvar = async (e) => {
     e.preventDefault();
@@ -83,14 +84,14 @@ function NovaOperacao({ aoSalvar }) {
   return (
     <form onSubmit={salvar} className="flex flex-wrap gap-2 items-center text-sm">
       {campo("ticker", { placeholder: "PETR4" })}
-      <select value={op.tipo} onChange={(e) => setOp({ ...op, tipo: e.target.value })} className="bg-fundo border border-borda rounded px-2 py-1">
+      <select value={op.tipo} onChange={(e) => setOp({ ...op, tipo: e.target.value })} className="campo py-1.5">
         <option value="compra">compra</option><option value="venda">venda</option>
       </select>
-      {campo("data", { type: "date", max: hoje, className: "bg-fundo border border-borda rounded px-2 py-1" })}
+      {campo("data", { type: "date", max: hoje, className: "campo py-1.5" })}
       {campo("quantidade", { placeholder: "Qtd", inputMode: "numeric" })}
       {campo("preco", { placeholder: "Preço", inputMode: "decimal" })}
       {campo("custos", { placeholder: "Custos", inputMode: "decimal" })}
-      <button className="bg-borda hover:bg-destaque/40 rounded px-3 py-1">Registrar</button>
+      <button className="btn-primario text-sm">Registrar</button>
       {msg && <span className="text-apagado">{msg}</span>}
     </form>
   );
@@ -136,10 +137,10 @@ export default function Carteira({ aoEnvelope, abrirAtivo }) {
       <Erro erro={cart.erro} />
       <ResumoCarteira dados={d} />
       <div className="flex flex-wrap gap-3 items-center text-sm">
-        <label className="bg-borda hover:bg-destaque/40 rounded px-3 py-1 cursor-pointer">
+        <label className="btn-secundario cursor-pointer">
           Importar extrato…<input type="file" accept=".csv,.xlsx,.xls" onChange={importar} className="hidden" />
         </label>
-        <button onClick={sincronizar} className="bg-borda hover:bg-destaque/40 rounded px-3 py-1">Sincronizar XP</button>
+        <button onClick={sincronizar} className="btn-secundario">Sincronizar XP</button>
         <span className="text-apagado">Fonte: {fonte}</span>
       </div>
       {msg && <p className="text-sm text-atencao">{msg}</p>}
@@ -152,16 +153,16 @@ export default function Carteira({ aoEnvelope, abrirAtivo }) {
         são isentas; acima disso, 15% sobre o lucro. FII, ETF e BDR têm regras próprias.</p>
       <div className="grid lg:grid-cols-2 gap-3">
         {ind.dados ? <Indicacoes d={ind.dados} abrirAtivo={abrirAtivo} /> : <Carregando />}
-        <div className="h-[28rem] bg-painel border border-borda rounded-lg p-2">
+        <div className="cartao h-[28rem] p-3">
           <p className="text-xs text-apagado">Patrimônio × investido (R$)</p>
           <ResponsiveContainer height="94%">
             <LineChart data={evol.dados || []}>
-              <XAxis dataKey="data" stroke="#8b949e" fontSize={11} minTickGap={40} />
-              <YAxis stroke="#8b949e" fontSize={11} tickFormatter={(v) => num(v, 0)} />
-              <Tooltip contentStyle={{ background: "#161b22", border: "1px solid #30363d" }} formatter={(v) => reais(v)} />
+              <XAxis dataKey="data" {...EIXO} minTickGap={40} />
+              <YAxis {...EIXO} tickFormatter={(v) => num(v, 0)} />
+              <Tooltip contentStyle={DICA} formatter={(v) => reais(v)} />
               <Legend />
-              <Line name="Patrimônio" dataKey="valor" stroke="#58a6ff" dot={false} strokeWidth={2} isAnimationActive={false} />
-              <Line name="Investido" dataKey="investido" stroke="#8b949e" dot={false} strokeDasharray="4 4" isAnimationActive={false} />
+              <Line name="Patrimônio" dataKey="valor" stroke={COR.destaque} dot={false} strokeWidth={2} isAnimationActive={false} />
+              <Line name="Investido" dataKey="investido" stroke={COR.apagado} dot={false} strokeDasharray="4 4" isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </div>

@@ -3,9 +3,9 @@ import { AVISO } from "./fmt.js";
 
 export function Card({ titulo, valor, detalhe, cor = "" }) {
   return (
-    <div className="bg-painel border border-borda rounded-lg p-3 min-w-0">
-      <div className="text-xs text-apagado">{titulo}</div>
-      <div className={`text-xl font-semibold truncate ${cor}`}>{valor}</div>
+    <div className="cartao p-4 min-w-0">
+      <div className="text-xs font-semibold uppercase tracking-wide text-apagado">{titulo}</div>
+      <div className={`text-2xl font-extrabold truncate mt-1 ${cor}`}>{valor}</div>
       <div className="text-xs text-apagado truncate">{detalhe}</div>
     </div>
   );
@@ -37,12 +37,12 @@ export function Tabela({ colunas, linhas, chaveLinha = "ticker", aoClicar, ordem
   }, [linhas, ordem]);
   const cor = (c, v) => (c.colorir ? (v > 0 ? "text-alta" : v < 0 ? "text-baixa" : "") : "");
   return (
-    <div className="overflow-auto border border-borda rounded-lg">
+    <div className="cartao overflow-auto">
       <table className="w-full text-sm">
-        <thead className="bg-painel sticky top-0">
+        <thead className="bg-fundo sticky top-0 text-apagado text-xs uppercase tracking-wide">
           <tr>
             {colunas.map((c) => (
-              <th key={c.chave} className="px-2 py-2 text-left font-medium cursor-pointer select-none whitespace-nowrap"
+              <th key={c.chave} className="px-3 py-2.5 text-left font-semibold cursor-pointer select-none whitespace-nowrap hover:text-texto"
                   onClick={() => setOrdem((o) => ({ chave: c.chave, asc: o.chave === c.chave ? !o.asc : true }))}>
                 {c.titulo}{ordem.chave === c.chave ? (ordem.asc ? " ▲" : " ▼") : ""}
               </th>
@@ -52,9 +52,9 @@ export function Tabela({ colunas, linhas, chaveLinha = "ticker", aoClicar, ordem
         <tbody>
           {ordenadas.map((l) => (
             <tr key={l[chaveLinha]} onClick={() => aoClicar?.(l)}
-                className={`border-t border-borda ${aoClicar ? "cursor-pointer hover:bg-borda/40" : ""}`}>
+                className={`border-t border-borda ${aoClicar ? "cursor-pointer hover:bg-suave" : ""}`}>
               {colunas.map((c) => (
-                <td key={c.chave} className={`px-2 py-1 whitespace-nowrap ${c.fmt ? "text-right tabular-nums" : ""} ${cor(c, l[c.chave])}`}>
+                <td key={c.chave} className={`px-3 py-2 whitespace-nowrap ${c.fmt ? "text-right tabular-nums" : ""} ${cor(c, l[c.chave])}`}>
                   {c.fmt ? c.fmt(l[c.chave]) : (l[c.chave] ?? "–")}
                 </td>
               ))}

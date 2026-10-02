@@ -33,16 +33,15 @@ export function Entrar({ aoEntrar, motivo }) {
     }
   };
   return (
-    <form onSubmit={entrar} className="max-w-sm mx-auto mt-16 bg-painel border border-borda rounded-lg p-6 space-y-3">
-      <h1 className="text-xl font-semibold">Entrar</h1>
+    <form onSubmit={entrar} className="cartao max-w-sm mx-auto mt-16 p-8 space-y-4">
+      <h1 className="text-2xl font-extrabold">Entrar</h1>
       {motivo && <p className="text-sm text-apagado">{motivo}</p>}
       <input value={usuario} onChange={(e) => setUsuario(e.target.value)} autoFocus autoComplete="username"
-             className="w-full bg-fundo border border-borda rounded px-3 py-2" placeholder="Usuário" />
+             className="campo w-full" placeholder="Usuário" />
       <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} autoComplete="current-password"
-             className="w-full bg-fundo border border-borda rounded px-3 py-2" placeholder="Senha" />
+             className="campo w-full" placeholder="Senha" />
       {erro && <p className="text-baixa text-sm">{erro}</p>}
-      <button disabled={enviando || !usuario || !senha}
-              className="bg-destaque/60 hover:bg-destaque rounded px-4 py-2 disabled:opacity-50">
+      <button disabled={enviando || !usuario || !senha} className="btn-primario w-full">
         {enviando ? "Entrando…" : "Entrar"}
       </button>
     </form>
@@ -73,21 +72,30 @@ export default function App() {
   const pedirLogin = (motivo) => <Entrar aoEntrar={setUsuario} motivo={motivo} />;
   return (
     <div className="min-h-screen flex flex-col">
-      <nav className="flex flex-wrap gap-1 border-b border-borda px-3 pt-2 bg-painel items-end">
-        <span className="font-semibold mr-4 self-center">Projeto B3</span>
-        {ABAS.map(([k, t]) => (
-          <button key={k} onClick={() => setAba(k)}
-                  className={`px-4 py-2 rounded-t text-sm ${aba === k ? "bg-fundo border border-b-0 border-borda" : "text-apagado hover:text-texto"}`}>
-            {t}
-          </button>
-        ))}
-        <span className="ml-auto self-center text-sm pb-1">
-          {logado
-            ? <>{usuario} · <button className="text-apagado hover:text-texto" onClick={sair}>sair</button></>
-            : <button className="text-destaque hover:underline" onClick={() => setAba("carteira")}>Entrar</button>}
-        </span>
-      </nav>
-      <main className="flex-1 p-4">
+      <header className="bg-painel border-b border-borda shadow-sm sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 flex flex-wrap items-center gap-x-6">
+          <span className="flex items-center gap-2 py-3 mr-2">
+            <span className="w-8 h-8 rounded-lg bg-destaque text-white font-extrabold grid place-items-center">B3</span>
+            <span className="font-extrabold text-lg">Projeto B3</span>
+          </span>
+          <nav className="flex flex-wrap gap-1 self-stretch">
+            {ABAS.map(([k, t]) => (
+              <button key={k} onClick={() => setAba(k)}
+                      className={`px-3 text-sm font-semibold border-b-[3px] transition-colors ${aba === k
+                        ? "border-destaque text-texto" : "border-transparent text-apagado hover:text-texto"}`}>
+                {t}
+              </button>
+            ))}
+          </nav>
+          <span className="ml-auto text-sm py-3">
+            {logado
+              ? <span className="flex items-center gap-3"><span className="font-semibold">{usuario}</span>
+                  <button className="btn-secundario text-xs" onClick={sair}>sair</button></span>
+              : <button className="btn-primario text-sm" onClick={() => setAba("carteira")}>Entrar</button>}
+          </span>
+        </div>
+      </header>
+      <main className="flex-1 w-full max-w-7xl mx-auto p-4">
         {aba === "mercado" && <Mercado {...props} />}
         {aba === "ranking" && <Ranking {...props} />}
         {aba === "ativo" && <Ativo ticker={ticker} {...props} />}
@@ -95,11 +103,12 @@ export default function App() {
         {aba === "relatorio" && <Relatorio {...props} />}
         {aba === "chat" && (logado ? <Chat /> : pedirLogin("O chat de IA usa a sua cota do Gemini: entre para usar."))}
       </main>
-      <footer className="flex flex-wrap justify-end gap-4 items-center text-xs px-3 py-1.5 border-t border-borda bg-painel" data-testid="status">
-        {status.erro && <span className="text-atencao mr-auto">⚠ Falha ao atualizar: {status.erro.message} — mostrando o último dado válido</span>}
-        {env && <span className={env.mercado_aberto ? "text-alta" : "text-apagado"}>{env.mercado_aberto ? "● Pregão aberto" : "○ Mercado fechado"}</span>}
+      <footer className="flex flex-wrap justify-end gap-4 items-center text-xs px-4 py-2 border-t border-borda bg-painel" data-testid="status">
+        <span className="mr-auto text-apagado">Projeto pessoal de estudo, sem vínculo com o Itaú Unibanco ou com a B3. Não é recomendação de investimento.</span>
+        {status.erro && <span className="text-atencao">⚠ Falha ao atualizar: {status.erro.message} — mostrando o último dado válido</span>}
+        {env && <span className={`font-semibold ${env.mercado_aberto ? "text-alta" : "text-apagado"}`}>{env.mercado_aberto ? "● Pregão aberto" : "○ Mercado fechado"}</span>}
         {env?.atualizado_em && <span>dados de {hora(env.atualizado_em)}</span>}
-        {env?.provisorio && <span className="bg-atencao text-fundo font-semibold rounded px-1.5"
+        {env?.provisorio && <span className="selo"
                                   title="Valor intradiário (~15 min de atraso); o oficial sai depois do fechamento">PROVISÓRIO</span>}
       </footer>
     </div>
