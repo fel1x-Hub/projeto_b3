@@ -1,0 +1,55 @@
+name: Ciclo intradiário
+
+# A cada 15 min no pregão (10h–18h de Brasília = 13h–21h UTC), dias úteis (regra 15).
+# O agendamento do GitHub pode atrasar alguns minutos em horário de pico.
+on:
+  schedule:
+    - cron: "*/15 13-20 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      forcar:
+        description: "Rodar mesmo fora do pregão"
+        type: boolean
+        default: false
+
+concurrency:
+  group: banco            # nunca dois jobs mexendo no mesmo banco
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  ciclo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      LOG_LEVEL: INFO
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+
+      - name: Cotação do momento, notícias e ranking provisório
+        run: python scripts/ciclo_intradiario.py ${{ inputs.forcar && '--forcar' || '' }}
+
+      - name: Publicar na nuvem (Neon)
+        if: always()          # uma fonte com falha não impede publicar o que deu certo
+        run: python scripts/publicar_nuvem.py --so cotacao_atual ranking ranking_fatores noticias noticias_ativos sentimento_noticias execucoes_coleta
+
+      - name: Fechar o banco (checkpoint do WAL)
+        if: always()
+        run: python -c "import sqlite3; c = sqlite3.connect('data/b3.db'); c.execute('PRAGMA wal_checkpoint(TRUNCATE)'); c.close()"
+
+      - name: Guardar o banco
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/b3.db
+            data/modelos
+          key: banco-v1-${{ github.run_id }}
+
+      - name: Log
+        if: always()
+        run: tail -n 60 logs/app.log || true

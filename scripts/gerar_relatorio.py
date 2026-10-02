@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from config import settings  # noqa: E402
 from src.db.conexao import conectar  # noqa: E402
 from src.db.migracoes import migrar  # noqa: E402
+from src.db.tempo import agora_utc_iso  # noqa: E402
 from src.logging_config import configurar_logging  # noqa: E402
 from src.ranking import gerar  # noqa: E402
 from src.relatorio import insumos, redigir  # noqa: E402
@@ -40,6 +41,25 @@ def garantir_ranking(conn, dia: date) -> None:
     resultado = gerar.ranking_da_data(conn, dia, salvar_em=settings.BASE_DIR / "data" / "modelos")
     gerar.gravar(conn, resultado.ranking, gerar.VERSAO_MODELO)
     gerar.gravar_fatores(conn, resultado.fatores, gerar.VERSAO_MODELO)
+
+
+def gravar_no_banco(conn, data: str, texto: str) -> None:
+    """A API lê os relatórios do banco (igual na nuvem, onde não há pasta)."""
+    with conn:
+        conn.execute("INSERT INTO relatorios (data, markdown, gerado_em) VALUES (?, ?, ?) "
+                     "ON CONFLICT (data) DO UPDATE SET markdown = excluded.markdown, gerado_em = excluded.gerado_em",
+                     (data, texto, agora_utc_iso()))
+
+
+def importar_arquivos(conn, pasta: Path = PASTA) -> int:
+    """Relatórios gerados antes da tabela existir (ou à mão) entram no banco."""
+    existentes = {r[0] for r in conn.execute("SELECT data FROM relatorios")}
+    novos = 0
+    for arquivo in sorted(pasta.glob("*.md")):
+        if arquivo.stem not in existentes:
+            gravar_no_banco(conn, arquivo.stem, arquivo.read_text(encoding="utf-8"))
+            novos += 1
+    return novos
 
 
 def pendentes(conn, pasta: Path = PASTA, janela: int = 5) -> list[date]:
@@ -63,6 +83,7 @@ def gerar_um(conn, llm, dia: date) -> bool:
         return False
     PASTA.mkdir(parents=True, exist_ok=True)
     destino.write_text(texto, encoding="utf-8")
+    gravar_no_banco(conn, dia.isoformat(), texto)
     (PASTA / "insumos").mkdir(exist_ok=True)
     (PASTA / "insumos" / f"{dia.isoformat()}.json").write_text(
         json.dumps(entrada, ensure_ascii=False, indent=1), encoding="utf-8")  # para auditoria
@@ -79,6 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     conn = conectar()
     try:
         migrar(conn)
+        importar_arquivos(conn)
         if args.data:
             dias = [args.data]
         elif args.ultimos:

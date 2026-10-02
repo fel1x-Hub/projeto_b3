@@ -1,0 +1,30 @@
+# Blueprint do Render (etapa 8): a API FastAPI no plano grátis.
+# No painel do Render: New -> Blueprint -> escolher este repositório.
+# Os valores "sync: false" são pedidos na criação (nunca ficam no repositório).
+services:
+  - type: web
+    name: projeto-b3-api
+    runtime: python
+    plan: free
+    region: virginia
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: uvicorn src.api.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips "*"
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.7"
+      - key: API_TOKEN            # gerado aleatoriamente pelo Render (diferente do de desenvolvimento)
+        generateValue: true
+      - key: DATABASE_URL         # string de conexão do Neon (postgresql://...)
+        sync: false
+      - key: GEMINI_API_KEY       # chat e "por quê"
+        sync: false
+      - key: API_ORIGENS          # endereço do site no Vercel (CORS), ex.: https://projeto-b3.vercel.app
+        sync: false
+      - key: PLUGGY_CLIENT_ID     # opcional: botão "Sincronizar XP"
+        sync: false
+      - key: PLUGGY_CLIENT_SECRET
+        sync: false
+      - key: PLUGGY_ITEM_IDS
+        sync: false

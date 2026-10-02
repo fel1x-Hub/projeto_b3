@@ -1,9 +1,11 @@
+import os
 from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 
 from src.api import assistente, main
+from src.db import nuvem
 from src.db.conexao import conectar
 from src.db.migracoes import migrar
 
@@ -33,22 +35,59 @@ def _popular(conn):
                          "VALUES (?, ?, 'fund_lp', ?, 1, ?, ?)", (t, ult, 0.15 if t == "PETR4" else 0.05, TS, TS))
         conn.execute("INSERT INTO macro (serie, data, valor, fonte, disponivel_em, coletado_em) "
                      "VALUES ('selic_meta', ?, 13.75, 'bcb', ?, ?)", (ult, TS, TS))
+        conn.execute("INSERT INTO relatorios VALUES ('2026-09-29', '# Relatório\nTexto.', ?)", (TS,))
+        # tipo gravado pela coleta da CVM é 'fato_relevante' (não o nome da categoria)
+        conn.execute("INSERT INTO documentos (id, tipo, ticker, assunto, url, fonte, id_externo, disponivel_em, coletado_em) "
+                     "VALUES (1, 'fato_relevante', 'PETR4', 'Dividendos', 'http://x', 'cvm_ipe', 'a', ?, ?)", (TS, TS))
+        conn.execute("INSERT INTO eventos_documentos VALUES (1, 'm', 1, 'dividendos', 'positiva', 3, 'Paga dividendos', ?)",
+                     (TS,))
 
 
-@pytest.fixture
-def cliente(tmp_path, monkeypatch):
+def _preparar_postgres(url: str, sqlite_path) -> None:
+    """Postgres de teste zerado e preenchido pelo mesmo publicador usado em produção."""
+    import psycopg
+
+    from scripts import publicar_nuvem
+    with psycopg.connect(url, autocommit=True) as pg:
+        pg.execute("DROP SCHEMA public CASCADE")
+        pg.execute("CREATE SCHEMA public")
+    sq = conectar(sqlite_path)
+    try:
+        publicar_nuvem.publicar(sq, url, completo=True)
+    finally:
+        sq.close()
+
+
+# SQLite sempre; Postgres quando houver TEST_DATABASE_URL (ex.: Postgres portátil local)
+BACKENDS = ["sqlite"] + (["postgres"] if os.getenv("TEST_DATABASE_URL") else [])
+
+
+@pytest.fixture(params=BACKENDS)
+def cliente(request, tmp_path, monkeypatch):
     monkeypatch.setenv("API_TOKEN", TOKEN)
     caminho = tmp_path / "api.db"
     conn = conectar(caminho)
     migrar(conn)
     _popular(conn)
     conn.close()
-    monkeypatch.setattr(main.app.state, "db_path", caminho)
-    monkeypatch.setattr(main, "PASTA_RELATORIOS", tmp_path / "relatorios")
-    (tmp_path / "relatorios").mkdir()
-    (tmp_path / "relatorios" / "2026-09-29.md").write_text("# Relatório\nTexto.", encoding="utf-8")
+    if request.param == "postgres":
+        url = os.environ["TEST_DATABASE_URL"]
+        _preparar_postgres(url, caminho)
+        monkeypatch.setenv("DATABASE_URL", url)
+        monkeypatch.setattr(main.app.state, "db_path", None)
+        nuvem.fechar_pool()
+    else:
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.setattr(main.app.state, "db_path", caminho)
     with TestClient(main.app) as c:
         yield c
+    nuvem.fechar_pool()
+
+
+def _conn():
+    """Conexão direta ao banco que a API do teste está usando (nunca o data/b3.db real)."""
+    assert main.app.state.db_path is not None or os.getenv("DATABASE_URL")
+    return nuvem.conectar_api(main.app.state.db_path)
 
 
 def test_saude_sem_token_e_resto_exige_token(cliente):
@@ -66,7 +105,7 @@ def test_envelope_e_ranking(cliente):
 
 
 def test_cotacao_do_momento_e_ranking_provisorio_prevalecem(cliente):
-    conn = conectar(main.app.state.db_path)
+    conn = _conn()
     agora = "2099-01-01T15:00:00+00:00"  # mais novo que qualquer fechamento oficial
     with conn:
         conn.execute("INSERT INTO cotacao_atual VALUES ('PETR4', 33.5, 32.0, 0.046875, ?, 'yfinance_intradia', ?)",
@@ -174,7 +213,7 @@ def test_notificacoes_e_status(cliente):
 
 
 def test_ibovespa_do_momento_so_se_for_do_dia(cliente):
-    conn = conectar(main.app.state.db_path)
+    conn = _conn()
     velho, novo = "2000-01-03T17:00:00+00:00", "2099-01-02T17:00:00+00:00"
     with conn:
         conn.execute("INSERT INTO cotacao_atual VALUES ('IBOV', 100000, 99000, 0.0101, ?, 'yfinance_intradia', ?)",
@@ -184,3 +223,22 @@ def test_ibovespa_do_momento_so_se_for_do_dia(cliente):
         conn.execute("UPDATE cotacao_atual SET horario_cotacao = ?, coletado_em = ?", (novo, novo))
     conn.close()
     assert cliente.get("/mercado", headers=H).json()["dados"]["ibovespa"]["nome"] == "Ibovespa"
+
+
+def test_health_e_limitador():
+    assert main.Limitador({"geral": 2, "llm": 1}).permitir("ip", "llm", 0.0)
+    lim = main.Limitador({"geral": 2, "llm": 1})
+    assert [lim.permitir("ip", "geral", t) for t in (0.0, 1.0, 2.0)] == [True, True, False]
+    assert lim.permitir("ip", "geral", 61.5) and lim.permitir("outro", "geral", 2.0)
+
+
+def test_limite_devolve_429(cliente, monkeypatch):
+    monkeypatch.setattr(main, "limitador", main.Limitador({"geral": 2, "llm": 1}))
+    codigos = [cliente.get("/status", headers=H).status_code for _ in range(3)]
+    assert codigos == [200, 200, 429]
+    assert cliente.get("/health").status_code == 200        # health nunca é limitado
+
+
+def test_fatos_relevantes_aparecem_na_acao(cliente):
+    fatos = cliente.get("/ativo/PETR4", headers=H).json()["dados"]["fatos_relevantes"]
+    assert fatos and fatos[0]["resumo"] == "Paga dividendos" and fatos[0]["data"] == "2026-09-29"

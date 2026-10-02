@@ -2,7 +2,8 @@
 
 Rodar:  python desktop/main.py      (ou pythonw, sem janela de console)
 
-Consome só a API (regra 10). Sem API no ar em API_URL, sobe uma embutida.
+Consome só a API (regra 10): a da nuvem configurada em "Conexão…" (guardada nas
+configurações do usuário), senão uma local; rodando do código-fonte, sobe uma embutida.
 Atualiza sozinho (regra 15): a aba visível a cada 60 s com o pregão aberto e a
 cada 5 min com ele fechado; a barra de status mostra quando o dado ficou pronto
 e se é provisório.
@@ -13,11 +14,15 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from PySide6.QtCore import QTimer  # noqa: E402
-from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMessageBox, QTabWidget  # noqa: E402
+import os  # noqa: E402
+import time  # noqa: E402
+
+from PySide6.QtCore import QSettings, QTimer  # noqa: E402
+from PySide6.QtWidgets import (QApplication, QDialog, QDialogButtonBox, QFormLayout, QLabel, QLineEdit,  # noqa: E402
+                               QMainWindow, QMessageBox, QProgressDialog, QTabWidget)
 
 from desktop import telas  # noqa: E402
-from desktop.cliente import ClienteAPI, garantir_api  # noqa: E402
+from desktop.cliente import ClienteAPI, conectar  # noqa: E402
 from desktop.comum import AMARELO, VERDE, aplicar_tema, em_segundo_plano, hora  # noqa: E402
 
 INTERVALO_ABERTO_MS = 60_000
@@ -51,6 +56,8 @@ class Janela(QMainWindow):
             self.statusBar().addPermanentWidget(w)
         self.l_selo.hide()
 
+        self.menuBar().addAction("Conexão…", self._conexao)
+
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.atualizar)
         self.timer.start(INTERVALO_ABERTO_MS)
@@ -81,22 +88,86 @@ class Janela(QMainWindow):
         self.statusBar().clearMessage()
         self.statusBar().setStyleSheet("")
 
+    def _conexao(self):
+        if DialogoConexao(self).exec() == QDialog.Accepted:
+            QMessageBox.information(self, "Conexão", "Feche e abra o app para usar a nova conexão.")
+
     def _erro(self, msg: str):
         # mantém o último dado válido na tela e avisa (regra 15)
         self.statusBar().showMessage(f"⚠ Falha ao atualizar: {msg} — mostrando o último dado válido")
         self.statusBar().setStyleSheet(f"color: {AMARELO};")
 
 
+def configuracao() -> tuple[str, str]:
+    """(url, token): configurações do usuário; na falta, o .env (API_URL / API_TOKEN)."""
+    s = QSettings("ProjetoB3", "app")
+    return (s.value("api/url", "") or os.getenv("API_URL", ""), s.value("api/token", "") or os.getenv("API_TOKEN", ""))
+
+
+class DialogoConexao(QDialog):
+    """URL da API (nuvem) e token. Ficam nas configurações do usuário do Windows (sem administrador)."""
+
+    def __init__(self, parent=None, mensagem: str = ""):
+        super().__init__(parent)
+        self.setWindowTitle("Conexão com a API")
+        form = QFormLayout(self)
+        if mensagem:
+            aviso = QLabel(mensagem)
+            aviso.setWordWrap(True)
+            form.addRow(aviso)
+        url, token = configuracao()
+        self.url = QLineEdit(url, placeholderText="https://projeto-b3.onrender.com")
+        self.token = QLineEdit(token, echoMode=QLineEdit.Password, placeholderText="API_TOKEN")
+        form.addRow("Endereço da API", self.url)
+        form.addRow("Token", self.token)
+        botoes = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        botoes.accepted.connect(self._salvar)
+        botoes.rejected.connect(self.reject)
+        form.addRow(botoes)
+
+    def _salvar(self):
+        s = QSettings("ProjetoB3", "app")
+        s.setValue("api/url", self.url.text().strip())
+        s.setValue("api/token", self.token.text().strip())
+        self.accept()
+
+
+def abrir_conexao(app) -> ClienteAPI | None:
+    """Conecta sem travar a tela (a API da nuvem pode levar ~1 min para acordar)."""
+    while True:
+        url, token = configuracao()
+        espera = QProgressDialog("Conectando à API…", "Cancelar", 0, 0)
+        espera.setWindowTitle("Projeto B3")
+        espera.setMinimumWidth(460)
+        espera.show()
+        resultado = {}
+        em_segundo_plano(lambda: conectar(url, token), lambda c: resultado.update(c=c),
+                         lambda m: resultado.update(c=None, erro=m))
+        while "c" not in resultado and not espera.wasCanceled():
+            app.processEvents()
+            time.sleep(0.05)
+        cancelado = espera.wasCanceled()   # antes do close(): fechar o diálogo também emite canceled()
+        espera.close()
+        if cancelado:
+            return None
+        cliente = resultado["c"]
+        if cliente and cliente.token_valido():
+            return cliente
+        motivo = ("O token foi recusado pela API." if cliente else
+                  "Nenhuma API respondeu (nem a configurada, nem uma local em 127.0.0.1:8000).")
+        if DialogoConexao(None, motivo + " Confira o endereço e o token.").exec() != QDialog.Accepted:
+            return None
+
+
 def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("Projeto B3")
     aplicar_tema(app)
-    cliente = ClienteAPI()
-    if not garantir_api(cliente):
-        QMessageBox.critical(None, "Projeto B3", f"A API não respondeu em {cliente.url}.\n"
-                             "Confira o API_TOKEN no .env e o log em logs/app.log.")
+    cliente = abrir_conexao(app)
+    if cliente is None:
         return 1
     janela = Janela(cliente)
+    janela.setWindowTitle(f"Projeto B3 · apoio à decisão · {cliente.url}")
     janela.show()
     return app.exec()
 

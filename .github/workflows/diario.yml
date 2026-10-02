@@ -1,0 +1,80 @@
+name: Pipeline diário
+
+# 21h30 de Brasília (00h30 UTC do dia seguinte), de segunda a sexta: depois que
+# a B3 publica o arquivo oficial do pregão. Coleta -> eventos -> sinais ->
+# ranking -> paper trading -> relatório; depois publica na nuvem.
+on:
+  schedule:
+    - cron: "30 0 * * 2-6"
+  workflow_dispatch:
+
+concurrency:
+  group: banco
+  cancel-in-progress: false
+
+permissions:
+  contents: write      # backup semanal do banco no Release "dados"
+  actions: write       # manter os agendamentos ativos (keep-alive)
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      PLUGGY_CLIENT_ID: ${{ secrets.PLUGGY_CLIENT_ID }}
+      PLUGGY_CLIENT_SECRET: ${{ secrets.PLUGGY_CLIENT_SECRET }}
+      PLUGGY_ITEM_IDS: ${{ secrets.PLUGGY_ITEM_IDS }}
+      LOG_LEVEL: INFO
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+
+      - name: Pipeline completo
+        run: python scripts/rodar_diario.py
+
+      - name: Publicar na nuvem (Neon)
+        if: always()
+        run: python scripts/publicar_nuvem.py
+
+      - name: Carteira da XP (Meu Pluggy -> Neon)
+        if: always()
+        run: python scripts/sincronizar_carteira.py
+
+      - name: Fechar o banco (checkpoint do WAL)
+        if: always()
+        run: python -c "import sqlite3; c = sqlite3.connect('data/b3.db'); c.execute('PRAGMA wal_checkpoint(TRUNCATE)'); c.close()"
+
+      - name: Guardar o banco
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/b3.db
+            data/modelos
+          key: banco-v1-${{ github.run_id }}
+
+      - name: Backup semanal (sexta) no Release "dados"
+        if: always() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(date -u +%u)" = "6" ]; then
+            tar -czf banco-backup.tar.gz data/b3.db data/modelos
+            gh release upload dados banco-backup.tar.gz --clobber
+          fi
+
+      - name: Manter os agendamentos ativos
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Repositório público sem commits por 60 dias tem os agendamentos desligados pelo GitHub.
+          for wf in intradiario.yml diario.yml; do
+            gh api -X PUT "repos/${{ github.repository }}/actions/workflows/$wf/enable" || true
+          done
+
+      - name: Log
+        if: always()
+        run: tail -n 120 logs/app.log || true

@@ -116,6 +116,16 @@ cd frontend && npm test                       # testes dos componentes
 
 Na primeira vez, o site pede o `API_TOKEN` do `.env`, que fica guardado só naquele navegador. As telas e a atualização automática são as mesmas do app desktop, e as duas interfaces leem a mesma API.
 
+## Na nuvem (grátis)
+
+O passo a passo para colocar tudo online está em [DEPLOY.md](DEPLOY.md):
+- o pipeline roda no GitHub Actions;
+- os dados das telas e a carteira ficam no Neon;
+- a API fica no Render e o site no Vercel;
+- o app desktop (`ProjetoB3.exe`) sai em Releases.
+
+Depois disso nada depende do seu PC ligado.
+
 ## Relatório diário
 
 Fica em `relatorios/AAAA-MM-DD.md`. Os números são todos calculados em código ([src/relatorio/insumos.py](src/relatorio/insumos.py)), e o Gemini só redige o texto. Uma checagem automática confere cada número do texto contra os insumos. Se o relatório citar número sem origem, é refeito uma vez; se persistir, vai para `relatorios/rejeitados/` e não é publicado. Os insumos de cada dia ficam em `relatorios/insumos/` para auditoria.

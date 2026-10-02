@@ -13,7 +13,6 @@ import re
 import sqlite3
 from datetime import datetime
 
-from config import settings
 from src.api import consultas
 from src.carteira import servico
 from src.relatorio.checagem import numeros_sem_origem
@@ -96,10 +95,8 @@ def contexto(conn: sqlite3.Connection, pergunta: str) -> dict:
     ibov = consultas.ibovespa(conn)
     mac = consultas.macro(conn)
     citados = tickers_citados(conn, pergunta)
-    relatorio = ""
-    arquivos = sorted((settings.BASE_DIR / "relatorios").glob("*.md"))
-    if arquivos:
-        relatorio = arquivos[-1].read_text(encoding="utf-8")[:MAX_RELATORIO]
+    r = conn.execute("SELECT markdown FROM relatorios ORDER BY data DESC LIMIT 1").fetchone()
+    relatorio = r[0][:MAX_RELATORIO] if r else ""
     return {
         "agora": datetime.now(consultas.FUSO_B3).strftime("%Y-%m-%d %H:%M"),
         "mercado_aberto": consultas.mercado_aberto(),

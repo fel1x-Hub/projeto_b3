@@ -15,6 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 import pandas as pd
 
 from src.coleta.intradiario import pregao_em_andamento
+from src.db.nuvem import ler_df
 from src.db.tempo import FUSO_B3
 from src.ranking import gerar, provisorio
 from src.sinais import descricoes
@@ -43,7 +44,7 @@ def _data_brt(iso_utc: str) -> date:
 def ranking_em_vigor(conn: sqlite3.Connection, versao: str | None = None) -> dict | None:
     """Qual ranking vale agora: {data, versao, provisorio, atualizado_em}."""
     def ultimo(v):
-        r = conn.execute("SELECT data, MAX(disponivel_em) FROM ranking WHERE versao_modelo = ? "
+        r = conn.execute("SELECT MAX(data), MAX(disponivel_em) FROM ranking WHERE versao_modelo = ? "
                          "AND data = (SELECT MAX(data) FROM ranking WHERE versao_modelo = ?)", (v, v)).fetchone()
         return {"data": r[0], "versao": v, "provisorio": v == PROVISORIO, "atualizado_em": r[1]} if r[0] else None
 
@@ -66,7 +67,7 @@ def posicoes_ranking(conn: sqlite3.Connection, vigor: dict | None) -> dict[str, 
 
 def fatores(conn: sqlite3.Connection, vigor: dict | None, tickers: list[str] | None = None, n: int = 4) -> dict:
     """ticker -> [{sinal, nome, percentil, contribuicao, texto}] (os que mais pesaram, regra 16)."""
-    if not vigor:
+    if not vigor or (tickers is not None and not tickers):   # IN () vazio: o Postgres recusa
         return {}
     sql = ("SELECT ticker, sinal, percentil, contribuicao FROM ranking_fatores WHERE data = ? AND versao_modelo = ?")
     params: list = [vigor["data"], vigor["versao"]]
@@ -90,9 +91,11 @@ def nomes(conn: sqlite3.Connection) -> dict[str, str]:
 
 def ultimos_fechamentos(conn: sqlite3.Connection) -> dict[str, dict]:
     """ticker -> {data, fechamento, anterior} dos dois últimos pregões oficiais."""
-    df = pd.read_sql_query(
-        "SELECT ticker, data, fechamento FROM cotacoes WHERE data >= (SELECT date(MAX(data), '-20 day') FROM cotacoes)",
-        conn)
+    ultima = conn.execute("SELECT MAX(data) FROM cotacoes").fetchone()[0]
+    if ultima is None:
+        return {}
+    desde = (date.fromisoformat(ultima) - timedelta(days=20)).isoformat()   # em Python: date() é só do SQLite
+    df = ler_df(conn, "SELECT ticker, data, fechamento FROM cotacoes WHERE data >= ?", (desde,))
     saida = {}
     for t, g in df.sort_values("data").groupby("ticker"):
         ult = g.iloc[-1]
@@ -117,16 +120,15 @@ def precos(conn: sqlite3.Connection) -> dict[str, dict]:
 
 
 def fatores_desdobramento(conn: sqlite3.Connection, ticker: str) -> pd.Series:
-    df = pd.read_sql_query("SELECT data_ex, fator FROM proventos WHERE ticker = ? AND tipo = 'desdobramento'",
-                           conn, params=(ticker,))
+    df = ler_df(conn, "SELECT data_ex, fator FROM proventos WHERE ticker = ? AND tipo = 'desdobramento'", (ticker,))
     return pd.Series(df["fator"].values, index=pd.to_datetime(df["data_ex"])).sort_index()
 
 
 def historico_precos(conn: sqlite3.Connection, ticker: str, dias: int = 365) -> pd.DataFrame:
     """OHLCV ajustado por desdobramentos (sem degrau falso no gráfico). Preço de hoje na escala atual."""
     desde = (date.today() - timedelta(days=dias)).isoformat()
-    df = pd.read_sql_query("SELECT data, abertura, maxima, minima, fechamento, volume FROM cotacoes "
-                           "WHERE ticker = ? AND data >= ? ORDER BY data", conn, params=(ticker, desde))
+    df = ler_df(conn, "SELECT data, abertura, maxima, minima, fechamento, volume FROM cotacoes "
+                      "WHERE ticker = ? AND data >= ? ORDER BY data", (ticker, desde))
     if df.empty:
         return df
     datas = pd.to_datetime(df["data"])
@@ -208,14 +210,13 @@ def sinais_atuais(conn: sqlite3.Connection, ticker: str) -> dict:
     dia = conn.execute("SELECT MAX(data) FROM sinais WHERE ticker = ?", (ticker,)).fetchone()[0]
     if not dia:
         return {"data": None, "sinais": []}
-    df = pd.read_sql_query(
-        "SELECT s.ticker, s.nome, s.valor FROM sinais s JOIN universo u ON u.data = s.data AND u.ticker = s.ticker "
-        "WHERE s.data = ?", conn, params=(dia,))
+    df = ler_df(conn, "SELECT s.ticker, s.nome, s.valor FROM sinais s JOIN universo u "
+                      "ON u.data = s.data AND u.ticker = s.ticker WHERE s.data = ?", (dia,))
     df["percentil"] = df.groupby("nome")["valor"].rank(pct=True)
     minhas = df[df["ticker"] == ticker]
     if minhas.empty:  # fora do universo do dia: valores sem percentil
-        minhas = pd.read_sql_query("SELECT nome, valor FROM sinais WHERE ticker = ? AND data = ?", conn,
-                                   params=(ticker, dia)).assign(percentil=None)
+        minhas = ler_df(conn, "SELECT nome, valor FROM sinais WHERE ticker = ? AND data = ?",
+                        (ticker, dia)).assign(percentil=None)
     sinais = [{"sinal": r.nome, "nome": descricoes.nome(r.nome), "valor": float(r.valor),
                "percentil": None if pd.isna(r.percentil) else float(r.percentil),
                "nivel": descricoes.nivel(None if pd.isna(r.percentil) else r.percentil, r.nome in descricoes.FEMININOS)}
@@ -262,7 +263,7 @@ def fatos_relevantes(conn: sqlite3.Connection, ticker: str | None = None, desde:
         "FROM documentos d JOIN ativos dono ON dono.ticker = d.ticker "
         "JOIN ativos a ON a.codigo_cvm = dono.codigo_cvm "
         "LEFT JOIN eventos_documentos e ON e.documento_id = d.id "
-        f"WHERE d.tipo = 'Fato Relevante' AND {onde} ORDER BY d.disponivel_em DESC, e.modelo LIKE '%:titulos' LIMIT ?",
+        f"WHERE d.tipo = 'fato_relevante' AND {onde} ORDER BY d.disponivel_em DESC, e.modelo LIKE '%:titulos' LIMIT ?",
         (*params, n * 4)).fetchall()
     saida, vistos = [], set()
     for t, doc, disp, tipo, assunto, url, evento, direcao, resumo, _ in linhas:

@@ -158,8 +158,9 @@ def importar(conn: sqlite3.Connection, conteudo: bytes, nome_arquivo: str = "") 
     with conn:
         for op in validas:
             cur = conn.execute(
-                "INSERT OR IGNORE INTO carteira_operacoes (ticker, tipo, data, quantidade, preco, custos, origem, "
-                "referencia, criado_em) VALUES (?, ?, ?, ?, ?, ?, 'importacao', ?, ?)",
+                "INSERT INTO carteira_operacoes (ticker, tipo, data, quantidade, preco, custos, origem, "
+                "referencia, criado_em) VALUES (?, ?, ?, ?, ?, ?, 'importacao', ?, ?) "
+                "ON CONFLICT (referencia) DO NOTHING",   # SQLite e Postgres
                 (op["ticker"], op["tipo"], op["data"], op["quantidade"], op["preco"], op["custos"],
                  op["referencia"], agora))
             if cur.rowcount:

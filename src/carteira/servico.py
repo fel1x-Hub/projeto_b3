@@ -13,19 +13,19 @@ import pandas as pd
 
 from src.api import consultas
 from src.carteira import posicoes as pos
+from src.db.nuvem import ler_df
 
 
 def operacoes(conn: sqlite3.Connection) -> pd.DataFrame:
-    return pd.read_sql_query("SELECT id, ticker, tipo, data, quantidade, preco, custos, origem FROM carteira_operacoes "
-                             "ORDER BY data, id", conn)
+    return ler_df(conn, "SELECT id, ticker, tipo, data, quantidade, preco, custos, origem FROM carteira_operacoes "
+                        "ORDER BY data, id")
 
 
 def proventos_de(conn: sqlite3.Connection, tickers: list[str]) -> pd.DataFrame:
     if not tickers:
         return pd.DataFrame(columns=["ticker", "tipo", "data_ex", "valor", "fator"])
-    return pd.read_sql_query(
-        f"SELECT ticker, tipo, data_ex, valor, fator FROM proventos WHERE ticker IN ({','.join('?' * len(tickers))})",
-        conn, params=tickers)
+    return ler_df(conn, f"SELECT ticker, tipo, data_ex, valor, fator FROM proventos "
+                        f"WHERE ticker IN ({','.join('?' * len(tickers))})", tickers)
 
 
 def leitura(posicao: int | None) -> str:
@@ -140,9 +140,9 @@ def evolucao(conn: sqlite3.Connection, dias: int = 365) -> list[dict]:
         return []
     inicio = max(pd.Timestamp(ops["data"].min()), pd.Timestamp.today().normalize() - pd.Timedelta(days=dias))
     tickers = sorted(set(ops["ticker"]) | {"BOVA11"})
-    px = pd.read_sql_query(
-        f"SELECT ticker, data, fechamento FROM cotacoes WHERE data >= ? AND ticker IN ({','.join('?' * len(tickers))})",
-        conn, params=[inicio.date().isoformat(), *tickers], parse_dates=["data"]
+    px = ler_df(
+        conn, f"SELECT ticker, data, fechamento FROM cotacoes WHERE data >= ? AND ticker IN ({','.join('?' * len(tickers))})",
+        [inicio.date().isoformat(), *tickers], parse_dates=["data"]
     ).pivot(index="data", columns="ticker", values="fechamento").sort_index().ffill()
     if px.empty:
         return []

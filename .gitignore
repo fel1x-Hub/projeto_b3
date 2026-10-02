@@ -26,3 +26,7 @@ relatorios/
 # Frontend (etapa 7)
 node_modules/
 frontend/dist/
+
+# Etapa 8: artefatos de build e o pacote do banco (vai para o Release, não para o git)
+dist/
+build/

@@ -411,3 +411,15 @@ CREATE TABLE carteira_sincronizada (
     {_ts("sincronizado_em")}
 );
 """
+
+
+SCHEMA_V10 = f"""
+-- Relatório diário em Markdown (etapa 8): a API lê daqui, e não da pasta
+-- relatorios/, para funcionar igual na nuvem (onde não há pasta). Os arquivos
+-- continuam sendo gravados para leitura direta.
+CREATE TABLE relatorios (
+    {_data("data")} PRIMARY KEY,
+    markdown      TEXT NOT NULL,
+    {_ts("gerado_em")}
+);
+"""

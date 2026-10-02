@@ -1,0 +1,47 @@
+name: Preparar pipeline
+description: Python, dependências e o banco de trabalho (SQLite) restaurado do cache do Actions.
+
+inputs:
+  restaurar-banco:
+    description: "true = restaura o último banco do cache (falha se não houver)"
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+        cache: pip
+        cache-dependency-path: requirements-nuvem.txt
+
+    - name: Dependências
+      shell: bash
+      run: pip install -r requirements-nuvem.txt
+
+    - name: Modelo de sentimento (FinBERT) em cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/huggingface
+        key: hf-finbert-v1
+
+    - name: Banco de trabalho (último salvo)
+      if: inputs.restaurar-banco == 'true'
+      id: banco
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          data/b3.db
+          data/modelos
+        key: banco-v1-${{ github.run_id }}
+        restore-keys: banco-v1-
+
+    - name: Conferir banco
+      if: inputs.restaurar-banco == 'true'
+      shell: bash
+      run: |
+        if [ ! -f data/b3.db ]; then
+          echo "::error::Sem banco no cache. Rode o workflow 'Inicializar nuvem' (veja DEPLOY.md)."
+          exit 1
+        fi
+        ls -la data/b3.db

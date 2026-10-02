@@ -9,26 +9,29 @@ import math
 import os
 import secrets
 import sqlite3
+import threading
+import time
+from collections import deque
 from contextlib import asynccontextmanager
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Literal
 
-from fastapi import Depends, FastAPI, File, HTTPException, Query, Security, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Query, Request, Security, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field, field_validator
 
-from config import settings
 from src.api import assistente, consultas, notificacoes
 from src.carteira import importar as importador
 from src.carteira import servico
-from src.db.conexao import conectar
+from src.db import schema_nuvem
 from src.db.migracoes import migrar
-from src.db.tempo import agora_utc_iso, para_iso_utc
+from src.db.nuvem import ConexaoPG, conectar_api
+from src.db.tempo import agora_utc_iso
 from src.logging_config import configurar_logging
 
-VERSAO_API = "1.0"
-PASTA_RELATORIOS = settings.BASE_DIR / "relatorios"
+VERSAO_API = "1.1"
 _bearer = HTTPBearer(auto_error=False)
 
 
@@ -37,9 +40,12 @@ async def _ciclo_de_vida(app: FastAPI):
     configurar_logging()
     if not os.getenv("API_TOKEN"):
         raise RuntimeError("API_TOKEN ausente no .env: a API não sobe aberta (veja .env.example)")
-    conn = conectar(app.state.db_path)
+    conn = conectar_api(app.state.db_path)
     try:
-        migrar(conn)
+        if isinstance(conn, ConexaoPG):
+            schema_nuvem.garantir(conn)     # Postgres na nuvem (DATABASE_URL)
+        else:
+            migrar(conn)                     # SQLite local
     finally:
         conn.close()
     yield
@@ -47,9 +53,42 @@ async def _ciclo_de_vida(app: FastAPI):
 
 app = FastAPI(title="Projeto B3", version=VERSAO_API, lifespan=_ciclo_de_vida,
               description="Ranking, sinais, carteira e chat. Material de apoio, não recomendação de investimento.")
-app.state.db_path = None   # None = settings.DB_PATH (testes trocam)
+app.state.db_path = None   # None = DATABASE_URL (Postgres) ou o SQLite padrão; testes trocam
 app.add_middleware(CORSMiddleware, allow_origins=os.getenv("API_ORIGENS", "http://localhost:5173").split(","),
                    allow_methods=["*"], allow_headers=["*"])
+
+
+class Limitador:
+    """Limite de requisições por IP em janela de 60 s (etapa 8.6: evita abuso; em memória, 1 instância)."""
+
+    def __init__(self, limites: dict[str, int]):
+        self.limites, self._vistos, self._trava = limites, {}, threading.Lock()
+
+    def permitir(self, ip: str, grupo: str, agora: float | None = None) -> bool:
+        agora = time.monotonic() if agora is None else agora
+        with self._trava:
+            fila = self._vistos.setdefault((ip, grupo), deque())
+            while fila and agora - fila[0] > 60:
+                fila.popleft()
+            if len(fila) >= self.limites[grupo]:
+                return False
+            fila.append(agora)
+            return True
+
+
+limitador = Limitador({"geral": int(os.getenv("API_LIMITE_MIN", "180")), "llm": int(os.getenv("API_LIMITE_LLM_MIN", "10"))})
+
+
+@app.middleware("http")
+async def _limitar(request: Request, chamar):
+    caminho = request.url.path
+    if caminho in ("/saude", "/health"):
+        return await chamar(request)
+    ip = request.headers.get("x-forwarded-for", "").split(",")[0].strip() or (request.client.host if request.client else "?")
+    grupo = "llm" if caminho == "/chat" or caminho.endswith("/porque") else "geral"
+    if not limitador.permitir(ip, grupo):
+        return JSONResponse({"detail": "muitas requisições; tente de novo em instantes"}, status_code=429)
+    return await chamar(request)
 
 
 def autenticar(cred: HTTPAuthorizationCredentials | None = Security(_bearer)) -> None:
@@ -59,7 +98,7 @@ def autenticar(cred: HTTPAuthorizationCredentials | None = Security(_bearer)) ->
 
 
 def banco():
-    conn = conectar(app.state.db_path, entre_threads=True)
+    conn = conectar_api(app.state.db_path)
     try:
         yield conn
     finally:
@@ -96,6 +135,7 @@ protegido = [Depends(autenticar)]
 # ---------------------------------------------------------------- básicos
 
 @app.get("/saude", tags=["sistema"])
+@app.get("/health", tags=["sistema"], include_in_schema=False)   # nome que os serviços de hospedagem esperam
 def saude():
     return {"ok": True, "versao": VERSAO_API}
 
@@ -105,10 +145,10 @@ def status(conn=Depends(banco)):
     oficial = consultas.ranking_em_vigor(conn, "oficial")
     vigor = consultas.ranking_em_vigor(conn)
     cot = conn.execute("SELECT MAX(coletado_em), MAX(horario_cotacao) FROM cotacao_atual").fetchone()
-    relatorios = sorted(p.stem for p in PASTA_RELATORIOS.glob("*.md"))
+    ultimo = conn.execute("SELECT MAX(data) FROM relatorios").fetchone()[0]
     return envelope({"cotacao_momento": {"coletado_em": cot[0], "horario_cotacao": cot[1]},
                      "ranking_oficial": oficial, "ranking_em_vigor": vigor,
-                     "ultimo_relatorio": relatorios[-1] if relatorios else None,
+                     "ultimo_relatorio": ultimo,
                      "fontes": consultas.status_fontes(conn)},
                     agora_utc_iso(), bool(vigor and vigor["provisorio"]))
 
@@ -185,14 +225,14 @@ def ativo_porque(ticker: str, conn=Depends(banco)):
 # ---------------------------------------------------------------- relatório
 
 @app.get("/relatorios", tags=["relatório"], dependencies=protegido)
-def relatorios():
-    datas = sorted((p.stem for p in PASTA_RELATORIOS.glob("*.md")), reverse=True)
+def relatorios(conn=Depends(banco)):
+    datas = [r[0] for r in conn.execute("SELECT data FROM relatorios ORDER BY data DESC")]
     return envelope(datas, None)
 
 
 @app.get("/relatorio/{data}", tags=["relatório"], dependencies=protegido)
-def relatorio(data: str):
-    datas = sorted(p.stem for p in PASTA_RELATORIOS.glob("*.md"))
+def relatorio(data: str, conn=Depends(banco)):
+    datas = [r[0] for r in conn.execute("SELECT data FROM relatorios ORDER BY data")]
     if data == "ultimo":
         if not datas:
             raise HTTPException(404, "nenhum relatório gerado ainda")
@@ -201,14 +241,13 @@ def relatorio(data: str):
         date.fromisoformat(data)
     except ValueError:
         raise HTTPException(422, "data no formato AAAA-MM-DD ou 'ultimo'")
-    arquivo = PASTA_RELATORIOS / f"{data}.md"
-    if not arquivo.exists():
+    r = conn.execute("SELECT markdown, gerado_em FROM relatorios WHERE data = ?", (data,)).fetchone()
+    if r is None:
         raise HTTPException(404, f"sem relatório de {data}")
     i = datas.index(data)
-    return envelope({"data": data, "markdown": arquivo.read_text(encoding="utf-8"),
+    return envelope({"data": data, "markdown": r[0],
                      "anterior": datas[i - 1] if i > 0 else None,
-                     "proximo": datas[i + 1] if i + 1 < len(datas) else None},
-                    para_iso_utc(datetime.fromtimestamp(arquivo.stat().st_mtime, timezone.utc)))
+                     "proximo": datas[i + 1] if i + 1 < len(datas) else None}, r[1])
 
 
 # ---------------------------------------------------------------- carteira
@@ -274,9 +313,10 @@ def carteira_operacao(op: Operacao, conn=Depends(banco)):
     with conn:
         cur = conn.execute(
             "INSERT INTO carteira_operacoes (ticker, tipo, data, quantidade, preco, custos, origem, criado_em) "
-            "VALUES (?, ?, ?, ?, ?, ?, 'manual', ?)",
+            "VALUES (?, ?, ?, ?, ?, ?, 'manual', ?) RETURNING id",    # RETURNING: SQLite e Postgres
             (op.ticker, op.tipo, op.data.isoformat(), op.quantidade, op.preco, op.custos, agora_utc_iso()))
-    return {"id": cur.lastrowid}
+        novo_id = cur.fetchone()[0]
+    return {"id": novo_id}
 
 
 @app.delete("/carteira/operacao/{id_}", tags=["carteira"], dependencies=protegido)

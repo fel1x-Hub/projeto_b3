@@ -34,7 +34,7 @@ Sistema pessoal de apoio à análise da bolsa brasileira (B3). Coleta dados de v
 | 5 | Backtest e paper trading | [etapas/etapa5.md](etapas/etapa5.md) | 🔨 paper trading em andamento (backtest ✅) |
 | 6 | Relatório diário | [etapas/etapa6.md](etapas/etapa6.md) | ✅ concluída |
 | 7 | Interface (dashboard + chat IA + carteira) | [etapas/etapa7.md](etapas/etapa7.md) | ✅ concluída |
-| 8 | Deploy (desktop .exe + web gratuito) | [etapas/etapa8.md](etapas/etapa8.md) | ⏳ pendente |
+| 8 | Deploy (desktop .exe + web gratuito) | [etapas/etapa8.md](etapas/etapa8.md) | 🔨 em andamento |
 
 Status possíveis: ⏳ pendente · 🔨 em andamento · ✅ concluída
 
@@ -89,11 +89,14 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - 🙋 Pendente do usuário: credenciais do Meu Pluggy no `.env`. Só dá para conectar a XP durante os 15 dias de trial da conta pluggy.ai. Sem elas, a carteira funciona por extrato ou à mão.
 - Melhorias possíveis: separar o pacote do site em partes menores; no app, um gráfico de preço com candles.
 
-**Etapa 8 — deploy**
-- 🙋 Hospedagem de backend, banco e frontend (apresentar opções, regra 13). O usuário cria as contas.
-- Banco hoje com ~2 milhões de linhas: medir depois do enxugamento e comparar com os limites gratuitos.
-- Sentimento na nuvem: o torch (~1 GB) pode não caber; alternativa é o Gemini.
-- Agendamentos na nuvem (ex.: GitHub Actions). `.exe` do app Qt empacotado com PyInstaller.
+**Etapa 8 — deploy (em andamento).** Decisão do usuário (02/10/2026): **tudo grátis, sem cartão**. Roteiro em `DEPLOY.md`.
+- O GitHub Actions (grátis porque o repositório é público) roda o pipeline noturno e o ciclo de 15 min. O banco de trabalho SQLite fica no cache do Actions, com backup semanal no Release `dados`.
+- O Neon (Postgres 0,5 GB) guarda o modelo de leitura (~184 MB medidos), a carteira e os relatórios, alimentados por `scripts/publicar_nuvem.py`.
+- O Render roda a API (`render.yaml`, ela dorme sem uso), o Vercel roda o site (`frontend/`) e o GitHub Releases distribui o `.exe` (workflow `desktop.yml`).
+- A API roda igual em SQLite e Postgres (`src/db/nuvem.py`). Os testes da API rodam nos dois com `TEST_DATABASE_URL` (Postgres portátil em `%LOCALAPPDATA%\pgsql`, porta 54329).
+- A carteira nunca vai para o repositório nem para o pacote público (`scripts/empacotar_banco.py` a esvazia na cópia).
+- 🙋 Pendente do usuário: contas Neon, Render e Vercel; segredos no GitHub; o Release `dados` com `data/banco.tar.gz`; rodar "Inicializar nuvem". Depois, desligar o agendador local.
+- Critério de pronto: `/health` em produção, site público conectado, `.exe` funcionando, dados históricos no Neon e coleta agendada verificada após 24 h.
 
 ## Stack
 - Python 3.11+
@@ -180,7 +183,8 @@ Legenda: 🟢 decisão padrão do Claude (pode ser mudada pelo usuário) · 🙋
 - Ciclo intradiário (cotação ~15 min de atraso + ranking provisório): `python scripts/ciclo_intradiario.py [--forcar]`
 - Relatório diário: `python scripts/gerar_relatorio.py [--data AAAA-MM-DD | --ultimos N]` → `relatorios/`
 - Agendador contínuo: `python scripts/agendador.py`; no Windows: `powershell -ExecutionPolicy Bypass -File scripts\instalar_agendador.ps1 [-Remover]`
-- Testes: `pytest`
+- Testes: `pytest` · API também no Postgres: `TEST_DATABASE_URL=postgresql://teste@127.0.0.1:54329/b3teste pytest tests/test_api.py`
+- Nuvem: `python scripts/publicar_nuvem.py [--completo]` (precisa de DATABASE_URL) · pacote do banco: `python scripts/empacotar_banco.py` · .exe: `python desktop/construir.py`
 - Dev local (backend): `uvicorn src.api.main:app --reload`
 - Dev local (frontend): `cd frontend && npm run dev` (http://127.0.0.1:5173; proxy /api → 127.0.0.1:8000) · testes: `cd frontend && npm test`
 - Node.js: portátil em `%LOCALAPPDATA%

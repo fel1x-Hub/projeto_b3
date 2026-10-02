@@ -1,0 +1,54 @@
+name: Inicializar nuvem
+
+# Rodar UMA vez (Actions -> Inicializar nuvem -> Run workflow), depois de:
+# 1) anexar o pacote do banco (banco.tar.gz: data/b3.db + data/modelos) a um Release com a tag "dados";
+# 2) cadastrar o secret DATABASE_URL (Neon). Passo a passo em DEPLOY.md.
+# Coloca o banco no cache do Actions e faz a primeira publicação completa no Neon.
+on:
+  workflow_dispatch:
+    inputs:
+      arquivo:
+        description: "Arquivo no Release 'dados' (banco.tar.gz, ou banco-backup.tar.gz para restaurar o backup)"
+        default: banco.tar.gz
+
+concurrency:
+  group: banco
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  inicializar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/preparar
+        with:
+          restaurar-banco: "false"
+
+      - name: Baixar o banco do Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download dados --pattern "${{ inputs.arquivo }}" --output pacote.tar.gz --clobber
+          tar -xzf pacote.tar.gz          # data/b3.db e data/modelos/
+          rm pacote.tar.gz
+          ls -la data/b3.db data/modelos
+
+      - name: Schema em dia
+        run: python scripts/init_db.py
+
+      - name: Primeira publicação completa no Neon
+        run: python scripts/publicar_nuvem.py --completo
+
+      - name: Guardar o banco
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/b3.db
+            data/modelos
+          key: banco-v1-${{ github.run_id }}

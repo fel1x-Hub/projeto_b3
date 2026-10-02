@@ -1,3 +1,5 @@
+# Pipeline na nuvem (GitHub Actions, etapa 8): tudo menos a interface Qt.
+# Gerado a partir de requirements.txt; mantenha os dois em sincronia.
 # torch só para CPU (bem menor; o projeto não usa GPU)
 --extra-index-url https://download.pytorch.org/whl/cpu
 python-dotenv>=1.0
@@ -21,8 +23,6 @@ uvicorn[standard]>=0.30
 httpx>=0.27
 python-multipart>=0.0.9
 openpyxl>=3.1
-PySide6>=6.7
-pyqtgraph>=0.13
 # etapa 8: Postgres na nuvem (Neon)
 psycopg[binary]>=3.2
 psycopg-pool>=3.2

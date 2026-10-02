@@ -1,11 +1,15 @@
 """Cliente da API para o app desktop (regra 10: o app só fala com a API).
 
-Endereço em API_URL (padrão http://127.0.0.1:8000; "127.0.0.1" e não
-"localhost": no Windows, localhost tenta IPv6 antes e custa ~2 s por chamada).
-Se não houver API no ar e o endereço for local, o app sobe uma embutida.
+Ordem de conexão (etapa 8.5):
+1. a API configurada (nuvem, ex.: https://projeto-b3.onrender.com). O Render
+   grátis dorme sem uso e leva ~1 min para acordar, por isso a espera é longa;
+2. uma API local em http://127.0.0.1:8000 (se você a estiver rodando);
+3. rodando do código-fonte (não do .exe): sobe a API embutida no próprio app.
+"127.0.0.1" e não "localhost": no Windows, localhost tenta IPv6 antes e custa ~2 s.
 """
 
 import os
+import sys
 import threading
 import time
 
@@ -15,7 +19,8 @@ from dotenv import load_dotenv
 from config import settings
 
 load_dotenv(settings.BASE_DIR / ".env")
-API_URL = os.getenv("API_URL", "http://127.0.0.1:8000").rstrip("/")
+LOCAL = "http://127.0.0.1:8000"
+EMPACOTADO = getattr(sys, "frozen", False)      # rodando como .exe (PyInstaller)
 
 
 class ErroAPI(Exception):
@@ -23,10 +28,11 @@ class ErroAPI(Exception):
 
 
 class ClienteAPI:
-    def __init__(self, url: str = API_URL, token: str | None = None, timeout: float = 120):
-        self.url = url
-        self._http = httpx.Client(base_url=url, timeout=timeout,
-                                  headers={"Authorization": f"Bearer {token or os.getenv('API_TOKEN', '')}"})
+    def __init__(self, url: str = LOCAL, token: str | None = None, timeout: float = 120):
+        self.url = url.rstrip("/")
+        self.token = token if token is not None else os.getenv("API_TOKEN", "")
+        self._http = httpx.Client(base_url=self.url, timeout=timeout,
+                                  headers={"Authorization": f"Bearer {self.token}"})
 
     def _tratar(self, r: httpx.Response):
         if r.status_code >= 400:
@@ -46,29 +52,58 @@ class ClienteAPI:
     def delete(self, caminho: str):
         return self._tratar(self._http.delete(caminho))
 
-    def no_ar(self) -> bool:
+    def no_ar(self, timeout: float = 2) -> bool:
         try:
-            return self._http.get("/saude", timeout=2).status_code == 200
+            return self._http.get("/saude", timeout=timeout).status_code == 200
+        except httpx.HTTPError:
+            return False
+
+    def token_valido(self) -> bool:
+        try:
+            return self._http.get("/status", timeout=30).status_code != 401
         except httpx.HTTPError:
             return False
 
 
-def garantir_api(cliente: ClienteAPI, espera: float = 30) -> bool:
-    """Sobe a API embutida (thread do próprio app) se não houver uma no ar. True = ok."""
-    if cliente.no_ar():
-        return True
-    if not cliente.url.startswith(("http://127.0.0.1", "http://localhost")):
-        return False                                   # API remota fora do ar: não há o que subir
+def _local(url: str) -> bool:
+    return url.startswith(("http://127.0.0.1", "http://localhost"))
+
+
+def esperar(cliente: ClienteAPI, segundos: float, aviso=None) -> bool:
+    """Espera a API responder (a da nuvem pode estar acordando)."""
+    fim = time.monotonic() + segundos
+    while time.monotonic() < fim:
+        if cliente.no_ar(timeout=10 if not _local(cliente.url) else 2):
+            return True
+        if aviso:
+            aviso(f"Esperando a API em {cliente.url} (o servidor grátis pode levar ~1 min para acordar)…")
+        time.sleep(1 if _local(cliente.url) else 3)
+    return False
+
+
+def subir_embutida(porta: int = 8000, espera: float = 30) -> bool:
+    """Sobe a API no próprio processo (só rodando do código-fonte, com o banco local)."""
+    if EMPACOTADO:
+        return False
     import uvicorn
 
     from src.api.main import app
-
-    porta = int(cliente.url.rsplit(":", 1)[1])
     servidor = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=porta, log_level="warning"))
     threading.Thread(target=servidor.run, daemon=True, name="api-embutida").start()
-    fim = time.monotonic() + espera
-    while time.monotonic() < fim:
-        if cliente.no_ar():
-            return True
-        time.sleep(0.3)
-    return False
+    return esperar(ClienteAPI(f"http://127.0.0.1:{porta}"), espera)
+
+
+def conectar(url: str | None, token: str | None, aviso=None) -> ClienteAPI | None:
+    """Primeira API que responder, na ordem: configurada (nuvem), local, embutida."""
+    candidatos = []
+    if url:
+        candidatos.append((url, 90))
+    if not url or not _local(url):
+        candidatos.append((LOCAL, 2))
+    for endereco, espera in candidatos:
+        c = ClienteAPI(endereco, token)
+        if esperar(c, espera, aviso):
+            return c
+    if subir_embutida():
+        return ClienteAPI(LOCAL, token)
+    return None
