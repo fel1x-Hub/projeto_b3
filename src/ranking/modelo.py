@@ -33,11 +33,22 @@ PARAMETROS = {
     "verbose": -1,
 }
 N_ARVORES = 300
+
+# Modelo v2 (docs/ranking_v2.md): direção econômica imposta a alguns sinais.
+# +1 = maior percentil nunca piora o score; -1 = nunca melhora. Os demais ficam livres.
+MONOTONIA = {
+    "fund_lp": 1, "fund_roe": 1, "fund_margem_liq": 1, "fund_margem_ebitda": 1,
+    "fund_pvp": -1, "fund_pl": -1, "fund_divliq_ebitda": -1, "vol_21d": -1, "vol_63d": -1,
+}
 TREINO_MINIMO_DIAS = 252  # ~1 ano de alvos conhecidos antes do primeiro teste
 
 
-def treinar(X: pd.DataFrame, y: pd.Series) -> lgb.Booster:
-    return lgb.train(PARAMETROS, lgb.Dataset(X, label=y), num_boost_round=N_ARVORES)
+def treinar(X: pd.DataFrame, y: pd.Series, monotonia: dict[str, int] | None = None) -> lgb.Booster:
+    """monotonia: {sinal: +1/-1} (None = v1, sem restrições)."""
+    params = dict(PARAMETROS)
+    if monotonia:
+        params["monotone_constraints"] = [int(monotonia.get(c, 0)) for c in X.columns]
+    return lgb.train(params, lgb.Dataset(X, label=y), num_boost_round=N_ARVORES)
 
 
 def alvo_de_treino(alvo: pd.DataFrame) -> pd.Series:
@@ -53,7 +64,8 @@ def datas_de_refit(datas: pd.DatetimeIndex, minimo: int = TREINO_MINIMO_DIAS) ->
     return list(trimestres)
 
 
-def walk_forward(features: pd.DataFrame, alvo: pd.DataFrame, colunas: list[str]) -> pd.DataFrame:
+def walk_forward(features: pd.DataFrame, alvo: pd.DataFrame, colunas: list[str],
+                 monotonia: dict[str, int] | None = None) -> pd.DataFrame:
     """Previsões fora da amostra: data, ticker, score, refit."""
     dados = alvo.merge(features[colunas].reset_index(), on=["data", "ticker"], how="inner")
     dados["y"] = alvo_de_treino(dados)
@@ -66,7 +78,7 @@ def walk_forward(features: pd.DataFrame, alvo: pd.DataFrame, colunas: list[str])
         teste = todas[(todas["data"] >= refit) & ((todas["data"] < fim) if fim is not None else True)]
         if len(treino) < 1000 or teste.empty:
             continue
-        modelo = treinar(treino[colunas], treino["y"])
+        modelo = treinar(treino[colunas], treino["y"], monotonia)
         previsoes.append(teste[["data", "ticker"]].assign(score=modelo.predict(teste[colunas]), refit=refit))
         logger.info("refit %s: treino %d amostras (até %s), teste %d", refit.date(), len(treino),
                     treino["data"].max().date(), len(teste))

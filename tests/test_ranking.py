@@ -69,9 +69,9 @@ def test_walk_forward_so_treina_com_alvos_realizados(conn_mercado, monkeypatch):
     vistos = []
     original = modelo.treinar
 
-    def espiao(Xt, y):
+    def espiao(Xt, y, monotonia=None):
         vistos.append(len(Xt))
-        return original(Xt, y)
+        return original(Xt, y, monotonia)
 
     monkeypatch.setattr(modelo, "treinar", espiao)
     prev = modelo.walk_forward(X, alvo, ["x"])
@@ -126,3 +126,19 @@ def test_fatores_explicam_cada_acao(conn_mercado):
     contrib = r.fatores.set_index("ticker")["contribuicao"]
     assert contrib[topo] > 0 > contrib[fundo]
     assert gerar.gravar_fatores(conn, r.fatores, "teste") == len(r.fatores)
+
+
+def test_restricao_monotonica_impede_inverter_a_direcao():
+    import numpy as np
+    import pandas as pd
+    from src.ranking import modelo
+    rng = np.random.default_rng(0)
+    n = 4000
+    X = pd.DataFrame({"fund_divliq_ebitda": rng.random(n), "ret_21d": rng.random(n)})
+    # alvo artificial em U: o extremo de alavancagem "parece" bom (o ruído que o v1 aprende)
+    y = (X["fund_divliq_ebitda"] - 0.5) ** 2 + 0.1 * X["ret_21d"] + rng.normal(0, 0.01, n)
+    grade = pd.DataFrame({"fund_divliq_ebitda": np.linspace(0, 1, 21), "ret_21d": 0.5})
+    livre = modelo.treinar(X, y).predict(grade)
+    restrito = modelo.treinar(X, y, {"fund_divliq_ebitda": -1}).predict(grade)
+    assert livre[-1] > livre[10]                                  # sem restrição: extremo favorece
+    assert np.all(np.diff(restrito) <= 1e-12)                     # com restrição: nunca sobe
