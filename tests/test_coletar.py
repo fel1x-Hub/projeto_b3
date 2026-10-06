@@ -38,12 +38,19 @@ def test_fonte_quebrada_nao_para_as_outras(tmp_path, monkeypatch, capsys):
         ("rss", lambda c, d: 0, "rss"),
     ])
     codigo = coletar.main(["--db", str(tmp_path / "b3.db"), "--desde", "2024-01-01", "--fonte", "b3"])
-    assert codigo == 1                                   # alguma fonte falhou por completo
+    assert codigo == 0                                   # fonte não crítica quebrou: avisa, mas não derruba
     assert chamadas == [date(2024, 1, 1)]
     saida = capsys.readouterr().out
     assert "quebrada       falha" in saida and "cotacoes       sucesso" in saida
     assert "rss " not in saida.split("=== Registros")[0]  # filtrada pelo --fonte
     assert "PETR4" in saida
+
+
+def test_so_a_fonte_critica_derruba_o_passo(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(coletar, "FONTES_CRITICAS", {"cotacoes"})
+    monkeypatch.setattr(coletar, "FONTES", [("cotacoes", _fonte_quebrada, "b3"), ("rss", _fonte_cotacoes, "rss")])
+    assert coletar.main(["--db", str(tmp_path / "b3.db")]) == 1
+    assert "::warning::coleta 'cotacoes' falhou" in capsys.readouterr().out
 
 
 def test_sucesso_retorna_zero(tmp_path, monkeypatch, capsys):

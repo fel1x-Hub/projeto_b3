@@ -49,6 +49,7 @@ FONTES = [
     ("carteira_xp", pluggy.coletar, "carteira"),   # só com PLUGGY_* no .env; sem elas, não faz nada
 ]
 GRUPOS = sorted({g for _, _, g in FONTES})
+FONTES_CRITICAS = {b3_cotahist.FONTE}     # sem cotação oficial do dia não há sinal nem ranking
 
 
 def desde_padrao(hoje: date, anos: int) -> date:
@@ -83,7 +84,12 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         conn.close()
 
-    return 1 if any(r.status == "falha" for r in resultados) else 0
+    falhas = [r for r in resultados if r.status == "falha"]
+    for r in falhas:   # anotação amarela no GitHub Actions; no terminal é só uma linha de texto
+        print(f"::warning::coleta '{r.fonte}' falhou nesta execução (o resto seguiu): {r.erro or ''}"[:300])
+    # Só a falha de uma fonte CRÍTICA derruba o passo. Macro, notícias e CVM são tolerantes: o
+    # dado fica do último dia bom (a tela mostra a hora) e a próxima execução recupera.
+    return 1 if any(r.fonte in FONTES_CRITICAS for r in falhas) else 0
 
 
 if __name__ == "__main__":

@@ -23,10 +23,12 @@ jobs:
   verificar:
     # Sem banco no cache (antes de "Inicializar nuvem"), o ciclo é pulado em vez de falhar.
     runs-on: ubuntu-latest
+    timeout-minutes: 5          # consulta de cache travada não pode segurar a fila por 15 min (visto em 05/10)
     outputs:
       pronto: ${{ steps.banco.outputs.cache-matched-key != '' }}
     steps:
       - id: banco
+        continue-on-error: true  # se a consulta falhar, o ciclo é pulado em vez de a execução ficar vermelha
         uses: actions/cache/restore@v6
         with:
           # mesmos caminhos do salvamento: a lista de caminhos faz parte da identidade do cache
