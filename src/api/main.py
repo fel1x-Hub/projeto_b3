@@ -31,7 +31,7 @@ from src.db.nuvem import ConexaoPG, conectar_api
 from src.db.tempo import agora_utc_iso
 from src.logging_config import configurar_logging
 
-VERSAO_API = "1.1"
+VERSAO_API = "1.2"
 _bearer = HTTPBearer(auto_error=False)
 
 
